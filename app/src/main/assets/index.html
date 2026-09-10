@@ -1,14 +1,26 @@
 <!doctype html>
 <html lang="ru">
+
 <head>
+
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0d12">
+
+<meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,viewport-fit=cover"
+>
+
+<meta
+    name="theme-color"
+    content="#0b0d12"
+>
+
 <title>Расписание</title>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
+
 :root{
     --bg:#0b0d12;
     --card:#141821;
@@ -23,11 +35,13 @@
 }
 
 *{
-    box-sizing:border-box
+    box-sizing:border-box;
 }
 
 body{
     margin:0;
+    min-height:100vh;
+
     background:
         radial-gradient(
             1200px 600px at 90% -10%,
@@ -35,7 +49,9 @@ body{
             transparent 55%
         ),
         var(--bg);
+
     color:var(--text);
+
     font-family:
         Inter,
         system-ui,
@@ -43,42 +59,49 @@ body{
         BlinkMacSystemFont,
         "Segoe UI",
         sans-serif;
-    min-height:100vh
 }
 
 .app{
     max-width:720px;
     margin:auto;
-    padding:24px 16px 100px
+
+    padding:
+        24px
+        16px
+        100px;
 }
 
 .top{
     display:flex;
     align-items:center;
     justify-content:space-between;
-    margin-bottom:18px
+
+    margin-bottom:18px;
 }
 
 .title{
     font-size:32px;
     font-weight:800;
-    letter-spacing:-1px
+    letter-spacing:-1px;
 }
 
 .sub{
     color:var(--muted);
     font-size:14px;
-    margin-top:4px
+    margin-top:4px;
 }
 
 .icon{
     border:0;
     background:var(--card);
     color:var(--text);
+
     width:44px;
     height:44px;
+
     border-radius:14px;
-    font-size:20px
+
+    font-size:20px;
 }
 
 .hero{
@@ -88,123 +111,174 @@ body{
             rgba(139,124,255,.23),
             rgba(22,26,36,.85)
         );
-    border:1px solid #33315a;
-    border-radius:24px;
-    padding:18px;
-    box-shadow:0 18px 40px rgba(0,0,0,.22);
-    margin-bottom:14px
-}
 
-.row{
-    display:flex;
-    gap:10px;
-    align-items:center
+    border:1px solid #33315a;
+
+    border-radius:24px;
+
+    padding:18px;
+
+    box-shadow:
+        0 18px 40px rgba(0,0,0,.22);
+
+    margin-bottom:14px;
 }
 
 .select,
 .date{
     background:rgba(12,14,19,.68);
+
     border:1px solid var(--line);
+
     color:var(--text);
+
     border-radius:15px;
+
     padding:14px;
+
     width:100%;
+
     font-size:16px;
-    outline:none
+
+    outline:none;
 }
 
 .small{
     font-size:12px;
     color:var(--muted);
-    margin:14px 0 6px
-}
 
-.chips{
-    display:flex;
-    gap:8px;
-    overflow:auto;
-    padding:2px 1px 8px;
-    scrollbar-width:none
-}
-
-.chips::-webkit-scrollbar{
-    display:none
-}
-
-.chip{
-    white-space:nowrap;
-    padding:11px 14px;
-    border-radius:13px;
-    background:var(--card);
-    border:1px solid var(--line);
-    color:var(--muted);
-    font-weight:600
-}
-
-.chip.active{
-    background:var(--accent);
-    border-color:var(--accent);
-    color:#fff
+    margin:
+        8px 0
+        6px;
 }
 
 .actions{
     display:flex;
     gap:10px;
-    margin-top:12px
+
+    margin-top:12px;
 }
 
 .btn{
     flex:1;
+
     border:0;
+
     border-radius:15px;
+
     padding:14px 16px;
+
     font-weight:800;
-    font-size:15px
+
+    font-size:15px;
 }
 
 .primary{
     background:var(--accent);
-    color:#fff
+    color:#fff;
 }
 
 .secondary{
     background:var(--card2);
     color:var(--text);
-    border:1px solid var(--line)
+
+    border:1px solid var(--line);
 }
 
 .status{
     display:flex;
     align-items:center;
+
     gap:8px;
+
     color:var(--muted);
+
     font-size:13px;
-    margin:8px 2px
+
+    margin:
+        8px 2px;
 }
 
 .dot{
     width:8px;
     height:8px;
+
     border-radius:50%;
+
     background:var(--ok);
-    flex-shrink:0
+
+    flex-shrink:0;
 }
 
 .dot.error{
-    background:var(--error)
+    background:var(--error);
+}
+
+.dot.loading{
+    animation:pulse 1s infinite;
+}
+
+.week{
+    display:flex;
+
+    gap:8px;
+
+    overflow-x:auto;
+
+    padding:
+        2px 1px
+        8px;
+
+    scrollbar-width:none;
+}
+
+.week::-webkit-scrollbar{
+    display:none;
+}
+
+.chip{
+    white-space:nowrap;
+
+    padding:
+        11px 14px;
+
+    border-radius:13px;
+
+    background:var(--card);
+
+    border:1px solid var(--line);
+
+    color:var(--muted);
+
+    font-weight:600;
+}
+
+.chip.active{
+    background:var(--accent);
+
+    border-color:var(--accent);
+
+    color:#fff;
 }
 
 .day{
-    margin:18px 0 10px;
+    margin:
+        18px 0
+        10px;
+
     font-weight:800;
-    font-size:20px
+
+    font-size:20px;
 }
 
 .day small{
     font-weight:500;
+
     color:var(--muted);
+
     font-size:13px;
-    margin-left:8px
+
+    margin-left:8px;
 }
 
 .lesson{
@@ -214,190 +288,264 @@ body{
             var(--card),
             #11151c
         );
+
     border:1px solid var(--line);
+
     border-radius:20px;
+
     padding:15px;
+
     margin:10px 0;
+
     position:relative;
-    overflow:hidden
+
+    overflow:hidden;
 }
 
 .lesson:before{
     content:"";
+
     position:absolute;
+
     left:0;
     top:0;
     bottom:0;
+
     width:4px;
-    background:var(--accent)
+
+    background:var(--accent);
 }
 
 .time{
     color:var(--accent2);
+
     font-weight:800;
-    font-size:13px
+
+    font-size:13px;
 }
 
 .subject{
     font-size:18px;
+
     font-weight:800;
+
     margin-top:5px;
-    line-height:1.22
+
+    line-height:1.22;
 }
 
 .meta{
     color:var(--muted);
+
     font-size:13px;
+
     margin-top:7px;
+
     display:flex;
+
     flex-wrap:wrap;
-    gap:7px
+
+    gap:7px;
 }
 
 .pill{
     background:#202631;
+
     border-radius:10px;
-    padding:5px 8px
+
+    padding:5px 8px;
 }
 
 .empty{
     padding:30px 16px;
+
     text-align:center;
+
     color:var(--muted);
+
     background:var(--card);
+
     border:1px dashed var(--line);
-    border-radius:20px
+
+    border-radius:20px;
 }
 
 .footer{
     position:fixed;
+
     left:0;
     right:0;
     bottom:0;
+
     padding:10px 16px;
+
     background:
         linear-gradient(
             180deg,
             transparent,
             rgba(11,13,18,.96) 35%
-        )
+        );
 }
 
 .footerin{
     max-width:720px;
+
     margin:auto;
+
     display:flex;
+
     gap:8px;
+
     background:#11151d;
+
     border:1px solid var(--line);
+
     padding:6px;
-    border-radius:19px
+
+    border-radius:19px;
 }
 
 .nav{
     flex:1;
+
     border:0;
+
     background:transparent;
+
     color:var(--muted);
+
     padding:10px;
+
     border-radius:13px;
-    font-weight:700
+
+    font-weight:700;
 }
 
 .nav.active{
     background:var(--card2);
-    color:var(--text)
-}
 
-.sheet{
-    margin-top:16px
+    color:var(--text);
 }
 
 .hidden{
-    display:none!important
-}
-
-.loading{
-    animation:pulse 1.3s infinite
+    display:none!important;
 }
 
 @keyframes pulse{
+
     0%,100%{
-        opacity:.55
+        opacity:.4;
     }
+
     50%{
-        opacity:1
+        opacity:1;
     }
+
 }
+
 </style>
+
 </head>
+
 
 <body>
 
+
 <div class="app">
 
+
     <div class="top">
+
         <div>
-            <div class="title">Расписание</div>
-            <div class="sub" id="source">
+
+            <div class="title">
+                Расписание
+            </div>
+
+            <div class="sub">
                 Mail Облако • автоматическая синхронизация
             </div>
+
         </div>
+
 
         <button
             class="icon"
-            onclick="Android.openSource()"
+            onclick="openSource()"
         >
             ↗
         </button>
+
     </div>
 
+
+
     <div class="hero">
+
 
         <div class="small">
             Группа
         </div>
 
+
         <select
             id="group"
             class="select"
-            onchange="state.group=this.value;save()"
+            onchange="changeGroup(this.value)"
         >
+
             <option value="">
                 Загрузка групп…
             </option>
+
         </select>
+
+
 
         <div class="small">
             Дата
         </div>
 
+
         <input
             id="date"
             class="date"
             type="date"
-            onchange="state.date=this.value;render()"
+            onchange="changeDate(this.value)"
         >
 
+
+
         <div class="actions">
+
 
             <button
                 class="btn primary"
                 onclick="manualSync()"
             >
-                ↻ Обновить
+
+                ↻
+                Обновить
+
             </button>
+
 
             <button
                 class="btn secondary"
                 onclick="today()"
             >
+
                 Сегодня
+
             </button>
+
 
         </div>
 
+
     </div>
+
+
 
     <div class="status">
 
@@ -412,29 +560,41 @@ body{
 
     </div>
 
+
+
     <div
-        class="chips"
         id="week"
+        class="week"
     ></div>
 
-    <div id="content"></div>
+
+
+    <div
+        id="content"
+    ></div>
+
 
 </div>
+
+
 
 <div class="footer">
 
     <div class="footerin">
 
+
         <button class="nav active">
             Расписание
         </button>
 
+
         <button
             class="nav"
-            onclick="document.getElementById('date').showPicker?.()"
+            onclick="today()"
         >
             Календарь
         </button>
+
 
         <button
             class="nav"
@@ -443,56 +603,82 @@ body{
             Настройки
         </button>
 
+
     </div>
 
 </div>
 
+
+
 <script>
+
+
+/* =========================================================
+   НАСТРОЙКИ
+========================================================= */
+
 
 const AUTO_UPDATE_MINUTES = 10;
 
 const AUTO_UPDATE_MS =
     AUTO_UPDATE_MINUTES * 60 * 1000;
 
+
 const state = {
+
     files: [],
-    group: localStorage.getItem('group') || '',
+
+    group:
+        localStorage.getItem(
+            "group"
+        ) || "",
+
     date:
-        localStorage.getItem('date') ||
-        new Date().toISOString().slice(0,10)
+        localStorage.getItem(
+            "date"
+        ) || ""
+
 };
 
-let cache = {};
+
+let parsedCache = {};
 
 let syncRunning = false;
 
 let lastSyncTime =
-    Number(localStorage.getItem('lastSyncTime') || 0);
+    Number(
+        localStorage.getItem(
+            "lastSyncTime"
+        ) || 0
+    );
 
 
-/* =========================
+
+/* =========================================================
    СОХРАНЕНИЕ
-========================= */
+========================================================= */
 
-function save(){
+
+function saveState(){
 
     localStorage.setItem(
-        'group',
+        "group",
         state.group
     );
 
     localStorage.setItem(
-        'date',
+        "date",
         state.date
     );
 
-    render();
 }
 
 
-/* =========================
+
+/* =========================================================
    СТАТУС
-========================= */
+========================================================= */
+
 
 function setStatus(
     text,
@@ -501,53 +687,1742 @@ function setStatus(
 ){
 
     document.getElementById(
-        'status'
+        "status"
     ).textContent = text;
 
+
     const dot =
-        document.getElementById('dot');
+        document.getElementById(
+            "dot"
+        );
+
 
     dot.classList.toggle(
-        'loading',
+        "loading",
         loading
     );
 
+
     dot.classList.toggle(
-        'error',
+        "error",
         error
     );
+
 }
 
 
-/* =========================
-   ФОРМАТ ВРЕМЕНИ
-========================= */
 
-function formatTime(date){
+/* =========================================================
+   БЕЗОПАСНЫЙ HTML
+========================================================= */
+
+
+function esc(value){
+
+    return String(
+        value ?? ""
+    ).replace(
+        /[&<>"']/g,
+        function(char){
+
+            return {
+
+                "&":"&amp;",
+                "<":"&lt;",
+                ">":"&gt;",
+                '"':"&quot;",
+                "'":"&#39;"
+
+            }[char];
+
+        }
+    );
+
+}
+
+
+
+/* =========================================================
+   ДАТЫ
+========================================================= */
+
+
+function pad(n){
+
+    return String(n)
+        .padStart(
+            2,
+            "0"
+        );
+
+}
+
+
+function isoDate(
+    year,
+    month,
+    day
+){
+
+    return (
+        year +
+        "-" +
+        pad(month) +
+        "-" +
+        pad(day)
+    );
+
+}
+
+
+function formatDate(
+    date
+){
 
     return new Intl.DateTimeFormat(
-        'ru-RU',
+        "ru-RU",
         {
-            hour:'2-digit',
-            minute:'2-digit'
+            day:"numeric",
+            month:"long"
         }
-    ).format(date);
+    ).format(
+        new Date(
+            date + "T12:00:00"
+        )
+    );
+
 }
 
 
-/* =========================
-   АВТОСИНХРОНИЗАЦИЯ
-========================= */
+function weekdayName(
+    date
+){
+
+    return new Intl.DateTimeFormat(
+        "ru-RU",
+        {
+            weekday:"long"
+        }
+    ).format(
+        new Date(
+            date + "T12:00:00"
+        )
+    );
+
+}
+
+
+
+/* =========================================================
+   НАЗВАНИЯ ДНЕЙ
+========================================================= */
+
+
+const DAY_MAP = {
+
+    "ПН":1,
+    "ПОНЕДЕЛЬНИК":1,
+
+    "ВТ":2,
+    "ВТОРНИК":2,
+
+    "СР":3,
+    "СРЕДА":3,
+
+    "ЧТ":4,
+    "ЧЕТВЕРГ":4,
+
+    "ПТ":5,
+    "ПЯТНИЦА":5,
+
+    "СБ":6,
+    "СУББОТА":6,
+
+    "ВС":0,
+    "ВОСКРЕСЕНЬЕ":0
+
+};
+
+
+
+/* =========================================================
+   РАЗБОР СТРОКИ ДНЯ
+   Например:
+   ПН 14.09
+========================================================= */
+
+
+function parseDayCell(
+    value
+){
+
+    const text =
+        String(
+            value ?? ""
+        )
+        .trim()
+        .replace(
+            /\s+/g,
+            " "
+        );
+
+
+    if(!text){
+        return null;
+    }
+
+
+    const match =
+        text.match(
+            /^(ПН|ВТ|СР|ЧТ|ПТ|СБ|ВС|ПОНЕДЕЛЬНИК|ВТОРНИК|СРЕДА|ЧЕТВЕРГ|ПЯТНИЦА|СУББОТА|ВОСКРЕСЕНЬЕ)\s+(\d{1,2})[./-](\d{1,2})$/i
+        );
+
+
+    if(!match){
+        return null;
+    }
+
+
+    const dayName =
+        match[1].toUpperCase();
+
+
+    const day =
+        Number(match[2]);
+
+
+    const month =
+        Number(match[3]);
+
+
+    const year =
+        2026;
+
+
+    return {
+
+        dayName,
+
+        day,
+
+        month,
+
+        date:
+            isoDate(
+                year,
+                month,
+                day
+            )
+
+    };
+
+}
+
+
+
+/* =========================================================
+   ПОИСК ДАТ В EXCEL
+========================================================= */
+
+
+function findScheduleDates(
+    sheets
+){
+
+    const dates = [];
+
+
+    for(
+        const sheet of sheets
+    ){
+
+        const rows =
+            sheet.data;
+
+
+        for(
+            let r = 0;
+            r < rows.length;
+            r++
+        ){
+
+            const firstCell =
+                rows[r][0];
+
+
+            const parsed =
+                parseDayCell(
+                    firstCell
+                );
+
+
+            if(
+                parsed &&
+                !dates.some(
+                    x =>
+                        x.date ===
+                        parsed.date
+                )
+            ){
+
+                dates.push(
+                    parsed
+                );
+
+            }
+
+        }
+
+    }
+
+
+    dates.sort(
+        (a,b) =>
+            a.date.localeCompare(
+                b.date
+            )
+    );
+
+
+    return dates;
+
+}
+
+
+
+/* =========================================================
+   НАСТРОЙКА ДАТЫ ПОСЛЕ ЗАГРУЗКИ
+========================================================= */
+
+
+function ensureValidDate(){
+
+    const allDates =
+        getAllScheduleDates();
+
+
+    if(!allDates.length){
+        return;
+    }
+
+
+    const todayDate =
+        new Date();
+
+
+    const todayIso =
+        todayDate
+            .toISOString()
+            .slice(
+                0,
+                10
+            );
+
+
+    if(
+        state.date &&
+        allDates.includes(
+            state.date
+        )
+    ){
+
+        return;
+
+    }
+
+
+    const futureOrToday =
+        allDates.find(
+            x =>
+                x >= todayIso
+        );
+
+
+    if(futureOrToday){
+
+        state.date =
+            futureOrToday;
+
+    }else{
+
+        state.date =
+            allDates[0];
+
+    }
+
+
+    saveState();
+
+}
+
+
+
+/* =========================================================
+   XLSX
+========================================================= */
+
+
+function parseFile(
+    file
+){
+
+    if(
+        parsedCache[file.name]
+    ){
+
+        return parsedCache[
+            file.name
+        ];
+
+    }
+
+
+    try{
+
+        const binary =
+            atob(
+                file.data
+            );
+
+
+        const bytes =
+            new Uint8Array(
+                binary.length
+            );
+
+
+        for(
+            let i = 0;
+            i < binary.length;
+            i++
+        ){
+
+            bytes[i] =
+                binary.charCodeAt(i);
+
+        }
+
+
+        const workbook =
+            XLSX.read(
+                bytes,
+                {
+                    type:"array",
+                    cellDates:true
+                }
+            );
+
+
+        const sheets =
+            workbook.SheetNames.map(
+                function(name){
+
+                    return {
+
+                        name:name,
+
+                        data:
+                            XLSX.utils.sheet_to_json(
+                                workbook.Sheets[name],
+                                {
+                                    header:1,
+                                    defval:""
+                                }
+                            )
+
+                    };
+
+                }
+            );
+
+
+        parsedCache[
+            file.name
+        ] = sheets;
+
+
+        return sheets;
+
+    }catch(error){
+
+        console.error(
+            "Ошибка чтения Excel:",
+            error
+        );
+
+
+        return [];
+
+    }
+
+}
+
+
+
+/* =========================================================
+   ПОИСК ГРУПП
+   ГРУППЫ БЕРУТСЯ НЕ ПО REGEX,
+   А НЕПОСРЕДСТВЕННО ИЗ СТРОКИ 2.
+========================================================= */
+
+
+function findGroups(){
+
+    const groups = [];
+
+    const seen =
+        new Set();
+
+
+    for(
+        const file of state.files
+    ){
+
+        const sheets =
+            parseFile(file);
+
+
+        for(
+            const sheet of sheets
+        ){
+
+            const rows =
+                sheet.data;
+
+
+            /*
+             * В твоём Excel:
+             *
+             * строка 2:
+             *
+             * каб | 10 м/с | каб | 11 м/с | ...
+             *
+             * Индексы JavaScript начинаются с 0,
+             * поэтому это rows[1].
+             */
+
+
+            const header =
+                rows[1];
+
+
+            if(!header){
+                continue;
+            }
+
+
+            for(
+                let col = 0;
+                col < header.length;
+                col++
+            ){
+
+                let value =
+                    String(
+                        header[col] ?? ""
+                    )
+                    .replace(
+                        /\s+/g,
+                        " "
+                    )
+                    .trim();
+
+
+                if(!value){
+                    continue;
+                }
+
+
+                if(
+                    value.toLowerCase() ===
+                    "каб"
+                ){
+
+                    continue;
+
+                }
+
+
+                /*
+                 * Важный момент:
+                 *
+                 * мы НЕ проверяем название
+                 * регулярным выражением.
+                 *
+                 * Всё, что находится
+                 * в строке заголовков
+                 * между колонками "каб",
+                 * считается группой.
+                 */
+
+
+                if(
+                    value.length > 0 &&
+                    value.length < 100
+                ){
+
+                    if(
+                        !seen.has(value)
+                    ){
+
+                        seen.add(value);
+
+                        groups.push({
+                            name:value,
+                            col:col,
+                            sheet:sheet.name
+                        });
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+
+
+    return groups;
+
+}
+
+
+
+/* =========================================================
+   ВСЕ ДАТЫ
+========================================================= */
+
+
+function getAllScheduleDates(){
+
+    const result =
+        new Set();
+
+
+    for(
+        const file of state.files
+    ){
+
+        const sheets =
+            parseFile(file);
+
+
+        for(
+            const sheet of sheets
+        ){
+
+            const dates =
+                findScheduleDates(
+                    [sheet]
+                );
+
+
+            dates.forEach(
+                d =>
+                    result.add(
+                        d.date
+                    )
+            );
+
+        }
+
+    }
+
+
+    return Array.from(
+        result
+    ).sort();
+
+}
+
+
+
+/* =========================================================
+   ВЫБОР ФАЙЛА
+========================================================= */
+
+
+function getFileStartDate(
+    name
+){
+
+    const text =
+        String(
+            name ?? ""
+        );
+
+
+    /*
+     * 14.09.26
+     */
+
+    let m =
+        text.match(
+            /(\d{1,2})[.](\d{1,2})[.](\d{2,4})/
+        );
+
+
+    if(m){
+
+        let year =
+            Number(
+                m[3]
+            );
+
+
+        if(year < 100){
+            year += 2000;
+        }
+
+
+        return isoDate(
+            year,
+            Number(m[2]),
+            Number(m[1])
+        );
+
+    }
+
+
+    /*
+     * 2026-09-14
+     */
+
+    m =
+        text.match(
+            /(20\d{2})[._-](\d{1,2})[._-](\d{1,2})/
+        );
+
+
+    if(m){
+
+        return isoDate(
+            Number(m[1]),
+            Number(m[2]),
+            Number(m[3])
+        );
+
+    }
+
+
+    return "1900-01-01";
+
+}
+
+
+
+function chooseFile(
+    date
+){
+
+    const sorted =
+        [...state.files]
+        .sort(
+            function(a,b){
+
+                return getFileStartDate(b.name)
+                    .localeCompare(
+                        getFileStartDate(a.name)
+                    );
+
+            }
+        );
+
+
+    /*
+     * Сначала пытаемся найти файл,
+     * который начинается до выбранной даты.
+     */
+
+    const suitable =
+        sorted.find(
+            file =>
+                getFileStartDate(
+                    file.name
+                ) <= date
+        );
+
+
+    return (
+        suitable ||
+        sorted[sorted.length - 1] ||
+        null
+    );
+
+}
+
+
+
+/* =========================================================
+   ПОИСК КОЛОНКИ ГРУППЫ
+========================================================= */
+
+
+function findGroupColumn(
+    sheet,
+    group
+){
+
+    const rows =
+        sheet.data;
+
+
+    const header =
+        rows[1];
+
+
+    if(!header){
+        return -1;
+    }
+
+
+    for(
+        let col = 0;
+        col < header.length;
+        col++
+    ){
+
+        const value =
+            String(
+                header[col] ?? ""
+            )
+            .replace(
+                /\s+/g,
+                " "
+            )
+            .trim();
+
+
+        if(
+            value === group
+        ){
+
+            return col;
+
+        }
+
+    }
+
+
+    return -1;
+
+}
+
+
+
+/* =========================================================
+   ИЗВЛЕЧЕНИЕ РАСПИСАНИЯ
+========================================================= */
+
+
+function extractSchedule(
+    file,
+    targetDate,
+    group
+){
+
+    const sheets =
+        parseFile(file);
+
+
+    const result = [];
+
+
+    for(
+        const sheet of sheets
+    ){
+
+        const rows =
+            sheet.data;
+
+
+        const groupCol =
+            findGroupColumn(
+                sheet,
+                group
+            );
+
+
+        if(
+            groupCol < 0
+        ){
+
+            continue;
+
+        }
+
+
+        /*
+         * В твоём Excel перед группой
+         * всегда находится колонка "каб".
+         *
+         * Например:
+         *
+         * C = каб
+         * D = 10 м/с
+         *
+         * Поэтому кабинет:
+         *
+         * groupCol - 1
+         */
+
+
+        const cabinetCol =
+            groupCol > 0
+                ? groupCol - 1
+                : -1;
+
+
+        let activeDate =
+            null;
+
+
+        for(
+            let rowIndex = 0;
+            rowIndex < rows.length;
+            rowIndex++
+        ){
+
+            const row =
+                rows[rowIndex];
+
+
+            if(!row){
+                continue;
+            }
+
+
+            /*
+             * Проверяем первую колонку.
+             *
+             * Например:
+             *
+             * ПН 14.09
+             */
+
+            const parsedDay =
+                parseDayCell(
+                    row[0]
+                );
+
+
+            if(parsedDay){
+
+                activeDate =
+                    parsedDay.date;
+
+                continue;
+
+            }
+
+
+            /*
+             * Нас интересуют только строки
+             * выбранного дня.
+             */
+
+            if(
+                activeDate !==
+                targetDate
+            ){
+
+                continue;
+
+            }
+
+
+            /*
+             * В колонке B находится время.
+             */
+
+            const time =
+                String(
+                    row[1] ?? ""
+                )
+                .trim();
+
+
+            /*
+             * В колонке группы находится
+             * название занятия.
+             */
+
+            const subject =
+                String(
+                    row[groupCol] ?? ""
+                )
+                .trim();
+
+
+            if(
+                !subject
+            ){
+
+                continue;
+
+            }
+
+
+            /*
+             * Иногда в таблице могут быть
+             * технические значения.
+             */
+
+            if(
+                subject === "каб"
+            ){
+
+                continue;
+
+            }
+
+
+            const cabinet =
+                cabinetCol >= 0
+                    ? String(
+                        row[cabinetCol] ?? ""
+                    ).trim()
+                    : "";
+
+
+            result.push({
+
+                time,
+
+                subject,
+
+                cabinet,
+
+                sheet:sheet.name
+
+            });
+
+        }
+
+    }
+
+
+    return result;
+
+}
+
+
+
+/* =========================================================
+   УДАЛЕНИЕ ДУБЛИКАТОВ
+========================================================= */
+
+
+function removeDuplicates(
+    lessons
+){
+
+    const seen =
+        new Set();
+
+
+    return lessons.filter(
+        lesson => {
+
+            const key =
+                [
+                    lesson.time,
+                    lesson.subject,
+                    lesson.cabinet
+                ].join(
+                    "|"
+                );
+
+
+            if(
+                seen.has(key)
+            ){
+
+                return false;
+
+            }
+
+
+            seen.add(key);
+
+            return true;
+
+        }
+    );
+
+}
+
+
+
+/* =========================================================
+   ГРУППЫ
+========================================================= */
+
+
+function fillGroups(){
+
+    const select =
+        document.getElementById(
+            "group"
+        );
+
+
+    const groups =
+        findGroups();
+
+
+    console.log(
+        "Найдено групп:",
+        groups.length
+    );
+
+
+    console.log(
+        "Группы:",
+        groups.map(
+            g =>
+                g.name
+        )
+    );
+
+
+    if(
+        groups.length === 0
+    ){
+
+        select.innerHTML =
+            `
+            <option value="">
+                Группы не найдены
+            </option>
+            `;
+
+
+        setStatus(
+            "Группы не найдены",
+            false,
+            true
+        );
+
+
+        return;
+
+    }
+
+
+    /*
+     * Убираем возможные дубликаты
+     */
+
+    const names =
+        Array.from(
+            new Set(
+                groups.map(
+                    g =>
+                        g.name
+                )
+            )
+        );
+
+
+    names.sort(
+        function(a,b){
+
+            return a.localeCompare(
+                b,
+                "ru",
+                {
+                    numeric:true,
+                    sensitivity:"base"
+                }
+            );
+
+        }
+    );
+
+
+    select.innerHTML =
+        names.map(
+            name =>
+                `
+                <option value="${esc(name)}">
+                    ${esc(name)}
+                </option>
+                `
+        ).join("");
+
+
+    /*
+     * Сохраняем старую группу,
+     * если она всё ещё существует.
+     */
+
+    if(
+        state.group &&
+        names.includes(
+            state.group
+        )
+    ){
+
+        select.value =
+            state.group;
+
+    }else{
+
+        state.group =
+            names[0];
+
+        select.value =
+            state.group;
+
+        saveState();
+
+    }
+
+}
+
+
+
+/* =========================================================
+   НЕДЕЛЯ
+========================================================= */
+
+
+function getWeekDates(
+    centerDate
+){
+
+    const d =
+        new Date(
+            centerDate +
+            "T12:00:00"
+        );
+
+
+    const day =
+        d.getDay();
+
+
+    const mondayOffset =
+        day === 0
+            ? -6
+            : 1 - day;
+
+
+    d.setDate(
+        d.getDate() +
+        mondayOffset
+    );
+
+
+    const result = [];
+
+
+    for(
+        let i = 0;
+        i < 7;
+        i++
+    ){
+
+        const x =
+            new Date(d);
+
+
+        x.setDate(
+            d.getDate() +
+            i
+        );
+
+
+        result.push(
+            x.toISOString()
+                .slice(
+                    0,
+                    10
+                )
+        );
+
+    }
+
+
+    return result;
+
+}
+
+
+
+/* =========================================================
+   НЕДЕЛЬНЫЕ КНОПКИ
+========================================================= */
+
+
+function renderWeek(){
+
+    const container =
+        document.getElementById(
+            "week"
+        );
+
+
+    container.innerHTML = "";
+
+
+    if(!state.date){
+        return;
+    }
+
+
+    getWeekDates(
+        state.date
+    ).forEach(
+        date => {
+
+            const button =
+                document.createElement(
+                    "button"
+                );
+
+
+            button.className =
+                "chip";
+
+
+            if(
+                date ===
+                state.date
+            ){
+
+                button.classList.add(
+                    "active"
+                );
+
+            }
+
+
+            const dateObj =
+                new Date(
+                    date +
+                    "T12:00:00"
+                );
+
+
+            button.textContent =
+                new Intl.DateTimeFormat(
+                    "ru-RU",
+                    {
+                        weekday:"short",
+                        day:"numeric"
+                    }
+                ).format(
+                    dateObj
+                );
+
+
+            button.onclick =
+                function(){
+
+                    changeDate(
+                        date
+                    );
+
+                };
+
+
+            container.appendChild(
+                button
+            );
+
+        }
+    );
+
+}
+
+
+
+/* =========================================================
+   ОТРИСОВКА
+========================================================= */
+
+
+function render(){
+
+    const dateInput =
+        document.getElementById(
+            "date"
+        );
+
+
+    dateInput.value =
+        state.date || "";
+
+
+    renderWeek();
+
+
+    const content =
+        document.getElementById(
+            "content"
+        );
+
+
+    content.innerHTML = "";
+
+
+    if(
+        !state.files.length
+    ){
+
+        content.innerHTML =
+            `
+            <div class="empty">
+                Расписание ещё не загружено.
+                <br><br>
+                Нажми «Обновить».
+            </div>
+            `;
+
+
+        return;
+
+    }
+
+
+    if(
+        !state.group
+    ){
+
+        content.innerHTML =
+            `
+            <div class="empty">
+                Выбери группу выше.
+            </div>
+            `;
+
+
+        return;
+
+    }
+
+
+    if(
+        !state.date
+    ){
+
+        content.innerHTML =
+            `
+            <div class="empty">
+                Дата расписания не найдена.
+            </div>
+            `;
+
+
+        return;
+
+    }
+
+
+    const file =
+        chooseFile(
+            state.date
+        );
+
+
+    if(!file){
+
+        content.innerHTML =
+            `
+            <div class="empty">
+                Файл расписания не найден.
+            </div>
+            `;
+
+
+        return;
+
+    }
+
+
+    let lessons =
+        extractSchedule(
+            file,
+            state.date,
+            state.group
+        );
+
+
+    lessons =
+        removeDuplicates(
+            lessons
+        );
+
+
+    content.innerHTML =
+        `
+        <div class="day">
+
+            ${esc(
+                weekdayName(
+                    state.date
+                )
+            )}
+
+            <small>
+                ${esc(
+                    formatDate(
+                        state.date
+                    )
+                )}
+            </small>
+
+        </div>
+        `;
+
+
+    if(
+        !lessons.length
+    ){
+
+        content.innerHTML +=
+            `
+            <div class="empty">
+
+                На этот день
+                занятий нет.
+
+                <br><br>
+
+                Группа:
+                <b>
+                    ${esc(
+                        state.group
+                    )}
+                </b>
+
+            </div>
+            `;
+
+
+        return;
+
+    }
+
+
+    lessons.forEach(
+        lesson => {
+
+            const div =
+                document.createElement(
+                    "div"
+                );
+
+
+            div.className =
+                "lesson";
+
+
+            div.innerHTML =
+                `
+
+                <div class="time">
+
+                    ${esc(
+                        lesson.time ||
+                        "Время не указано"
+                    )}
+
+                </div>
+
+
+                <div class="subject">
+
+                    ${esc(
+                        lesson.subject
+                    )}
+
+                </div>
+
+
+                <div class="meta">
+
+
+                    ${
+                        lesson.cabinet
+                            ?
+                            `
+                            <span class="pill">
+
+                                Каб.
+                                ${esc(
+                                    lesson.cabinet
+                                )}
+
+                            </span>
+                            `
+                            :
+                            ""
+                    }
+
+
+                    ${
+                        lesson.sheet
+                            ?
+                            `
+                            <span class="pill">
+
+                                ${esc(
+                                    lesson.sheet
+                                )}
+
+                            </span>
+                            `
+                            :
+                            ""
+                    }
+
+
+                </div>
+
+                `;
+
+
+            content.appendChild(
+                div
+            );
+
+        }
+    );
+
+}
+
+
+
+/* =========================================================
+   ИЗМЕНЕНИЕ ГРУППЫ
+========================================================= */
+
+
+function changeGroup(
+    value
+){
+
+    state.group =
+        value;
+
+
+    saveState();
+
+    render();
+
+}
+
+
+
+/* =========================================================
+   ИЗМЕНЕНИЕ ДАТЫ
+========================================================= */
+
+
+function changeDate(
+    value
+){
+
+    if(!value){
+        return;
+    }
+
+
+    state.date =
+        value;
+
+
+    saveState();
+
+    render();
+
+}
+
+
+
+/* =========================================================
+   СЕГОДНЯ
+========================================================= */
+
+
+function today(){
+
+    const now =
+        new Date();
+
+
+    state.date =
+        now.toISOString()
+            .slice(
+                0,
+                10
+            );
+
+
+    /*
+     * Если сегодняшней даты нет
+     * в расписании, render всё равно
+     * покажет, что занятий нет.
+     */
+
+    saveState();
+
+    render();
+
+}
+
+
+
+/* =========================================================
+   ОБНОВЛЕНИЕ
+========================================================= */
+
 
 function manualSync(){
 
-    Android.sync();
+    if(syncRunning){
+        return;
+    }
+
+
+    syncRunning = true;
+
 
     setStatus(
-        'Обновляю расписание…',
+        "Обновляю расписание…",
         true
     );
+
+
+    try{
+
+        Android.sync();
+
+    }catch(error){
+
+        syncRunning = false;
+
+
+        setStatus(
+            "Ошибка обновления",
+            false,
+            true
+        );
+
+    }
+
 }
+
+
+
+/* =========================================================
+   АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ
+========================================================= */
 
 
 function autoSync(){
@@ -556,28 +2431,40 @@ function autoSync(){
         return;
     }
 
+
     syncRunning = true;
 
+
     setStatus(
-        'Автоматически проверяю расписание…',
+        "Автоматически проверяю расписание…",
         true
     );
+
 
     try{
 
         Android.sync();
 
-    }catch(e){
+    }catch(error){
 
         syncRunning = false;
 
+
         setStatus(
-            'Ошибка обновления',
+            "Не удалось обновить расписание",
             false,
             true
         );
+
     }
+
 }
+
+
+
+/* =========================================================
+   ЗАПУСК ТАЙМЕРА
+========================================================= */
 
 
 function startAutoUpdate(){
@@ -594,40 +2481,24 @@ function startAutoUpdate(){
 }
 
 
-function updateLastSync(){
 
-    lastSyncTime = Date.now();
+/* =========================================================
+   ОБНОВЛЕНИЕ ПРИ ВОЗВРАЩЕНИИ
+========================================================= */
 
-    localStorage.setItem(
-        'lastSyncTime',
-        String(lastSyncTime)
-    );
-
-    const text =
-        formatTime(
-            new Date(lastSyncTime)
-        );
-
-    setStatus(
-        'Расписание обновлено • ' + text
-    );
-}
-
-
-/* =========================
-   ОБНОВЛЕНИЕ ПРИ ВОЗВРАТЕ
-========================= */
 
 document.addEventListener(
-    'visibilitychange',
+    "visibilitychange",
     function(){
 
         if(
             document.visibilityState ===
-            'visible'
+            "visible"
         ){
 
-            const now = Date.now();
+            const now =
+                Date.now();
+
 
             if(
                 now - lastSyncTime >=
@@ -635,1213 +2506,257 @@ document.addEventListener(
             ){
 
                 autoSync();
+
             }
+
         }
+
     }
 );
 
 
-/* =========================
-   СЕГОДНЯ
-========================= */
 
-function today(){
-
-    state.date =
-        new Date()
-            .toISOString()
-            .slice(0,10);
-
-    document.getElementById(
-        'date'
-    ).value = state.date;
-
-    save();
-}
-
-
-/* =========================
-   ДАТЫ
-========================= */
-
-function fmt(d){
-
-    return new Intl.DateTimeFormat(
-        'ru-RU',
-        {
-            day:'numeric',
-            month:'long'
-        }
-    ).format(
-        new Date(d + 'T12:00:00')
-    );
-}
-
-
-function weekday(d){
-
-    return new Intl.DateTimeFormat(
-        'ru-RU',
-        {
-            weekday:'long'
-        }
-    ).format(
-        new Date(d + 'T12:00:00')
-    );
-}
-
-
-function iso(d){
-
-    return d
-        .toISOString()
-        .slice(0,10);
-}
-
-
-function weekDays(center){
-
-    let d =
-        new Date(center + 'T12:00:00');
-
-    let n =
-        (d.getDay() + 6) % 7;
-
-    d.setDate(
-        d.getDate() - n
-    );
-
-    let a = [];
-
-    for(let i = 0; i < 7; i++){
-
-        let x = new Date(d);
-
-        x.setDate(
-            d.getDate() + i
-        );
-
-        a.push(
-            iso(x)
-        );
-    }
-
-    return a;
-}
-
-
-/* =========================
-   НЕДЕЛЯ
-========================= */
-
-function renderWeek(){
-
-    let el =
-        document.getElementById('week');
-
-    el.innerHTML = '';
-
-    weekDays(
-        state.date
-    ).forEach(
-        x => {
-
-            let b =
-                document.createElement(
-                    'button'
-                );
-
-            b.className =
-                'chip' +
-                (
-                    x === state.date
-                    ? ' active'
-                    : ''
-                );
-
-            b.textContent =
-                new Intl.DateTimeFormat(
-                    'ru-RU',
-                    {
-                        weekday:'short',
-                        day:'numeric'
-                    }
-                ).format(
-                    new Date(
-                        x + 'T12:00:00'
-                    )
-                );
-
-            b.onclick = () => {
-
-                state.date = x;
-
-                document.getElementById(
-                    'date'
-                ).value = x;
-
-                save();
-            };
-
-            el.appendChild(b);
-        }
-    );
-}
-
-
-/* =========================
-   ДАТА ФАЙЛА
-========================= */
-
-function getStartDate(name){
-
-    let m =
-        name.match(
-            /(20\d{2})[._-]?(\d{1,2})[._-]?(\d{1,2})/
-        );
-
-    if(m){
-
-        return (
-            `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`
-        );
-    }
-
-    m =
-        name.match(
-            /(?:с|from|c)\s*(\d{1,2})[._-](\d{1,2})[._-](20\d{2})/i
-        );
-
-    if(m){
-
-        return (
-            `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`
-        );
-    }
-
-    return '1900-01-01';
-}
-
-
-function chooseFile(date){
-
-    let ok =
-        state.files
-            .filter(
-                f =>
-                    getStartDate(f.name) <= date
-            )
-            .sort(
-                (a,b) =>
-                    getStartDate(b.name)
-                        .localeCompare(
-                            getStartDate(a.name)
-                        )
-            );
-
-    return ok[0] || null;
-}
-
-
-/* =========================
-   EXCEL
-========================= */
-
-function parseFile(f){
-
-    if(cache[f.name]){
-        return cache[f.name];
-    }
-
-    try{
-
-        let bin =
-            atob(f.data);
-
-        let bytes =
-            new Uint8Array(
-                bin.length
-            );
-
-        for(
-            let i = 0;
-            i < bin.length;
-            i++
-        ){
-
-            bytes[i] =
-                bin.charCodeAt(i);
-        }
-
-        let wb =
-            XLSX.read(
-                bytes,
-                {
-                    type:'array',
-                    cellDates:true
-                }
-            );
-
-        let sheets =
-            wb.SheetNames.map(
-                n => ({
-                    name:n,
-                    data:
-                        XLSX.utils.sheet_to_json(
-                            wb.Sheets[n],
-                            {
-                                header:1,
-                                defval:''
-                            }
-                        )
-                })
-            );
-
-        cache[f.name] = sheets;
-
-        return sheets;
-
-    }catch(e){
-
-        console.error(
-            'Ошибка Excel:',
-            e
-        );
-
-        return [];
-    }
-}
-
-
-/* =========================
-   ПОИСК ГРУПП
-========================= */
-
-function cleanGroup(value){
-
-    return String(
-        value ?? ''
-    )
-        .replace(/\s+/g,' ')
-        .trim();
-}
-
-
-function looksLikeGroup(value){
-
-    const v =
-        cleanGroup(value);
-
-    if(!v){
-        return false;
-    }
-
-    if(v.length > 40){
-        return false;
-    }
-
-    /*
-     * Наши реальные группы:
-     *
-     * 10 м/с
-     * 14-п лаб
-     * 15(1) ф
-     * 25-п ф
-     * 36 ак
-     * 10 класс
-     */
-
-    return (
-        /^\d{1,3}\s*[.-]?\s*[А-Яа-яA-Za-z]{1,6}(\s*[А-Яа-яA-Za-z0-9()\/.-]{0,12})?$/
-            .test(v)
-        ||
-        /^\d{1,3}\s*\(\d+\)\s*[А-Яа-яA-Za-z]{1,8}$/
-            .test(v)
-        ||
-        /^\d{1,3}\s*-\s*[А-Яа-яA-Za-z]{1,8}\s*[А-Яа-яA-Za-z0-9()\/.-]*$/
-            .test(v)
-    );
-}
-
-
-function findGroups(){
-
-    const set =
-        new Set();
-
-    state.files.forEach(
-        f => {
-
-            const sheets =
-                parseFile(f);
-
-            sheets.forEach(
-                sheet => {
-
-                    const rows =
-                        sheet.data;
-
-                    /*
-                     * В нашем Excel группы
-                     * находятся в заголовках.
-                     * Проверяем первые 10 строк.
-                     */
-
-                    rows
-                        .slice(0,10)
-                        .forEach(
-                            row => {
-
-                                row.forEach(
-                                    cell => {
-
-                                        const v =
-                                            cleanGroup(cell);
-
-                                        if(
-                                            looksLikeGroup(v)
-                                        ){
-
-                                            set.add(v);
-                                        }
-                                    }
-                                );
-                            }
-                        );
-                }
-            );
-        }
-    );
-
-    /*
-     * Если обычный поиск не нашёл группы,
-     * делаем дополнительный поиск
-     * по всей таблице.
-     */
-
-    if(set.size === 0){
-
-        state.files.forEach(
-            f => {
-
-                parseFile(f).forEach(
-                    sheet => {
-
-                        sheet.data.forEach(
-                            row => {
-
-                                row.forEach(
-                                    cell => {
-
-                                        const v =
-                                            cleanGroup(cell);
-
-                                        if(
-                                            looksLikeGroup(v)
-                                        ){
-
-                                            set.add(v);
-                                        }
-                                    }
-                                );
-                            }
-                        );
-                    }
-                );
-            }
-        );
-    }
-
-    return Array.from(set)
-        .sort(
-            (a,b) =>
-                a.localeCompare(
-                    b,
-                    'ru',
-                    {
-                        numeric:true
-                    }
-                )
-        );
-}
-
-
-/* =========================
-   СРАВНЕНИЕ ГРУПП
-========================= */
-
-function groupMatches(
-    value,
-    group
-){
-
-    return String(
-        value ?? ''
-    )
-        .toLowerCase()
-        .replace(/\s+/g,' ')
-        .includes(
-            group
-                .toLowerCase()
-                .replace(/\s+/g,' ')
-        );
-}
-
-
-/* =========================
-   ВРЕМЯ
-========================= */
-
-function cellTime(v){
-
-    let s =
-        String(v ?? '');
-
-    let m =
-        s.match(
-            /\b\d{1,2}[:.]\d{2}\s*[-–—]\s*\d{1,2}[:.]\d{2}\b/
-        );
-
-    return m
-        ? m[0].replace(/\./g,':')
-        : '';
-}
-
-
-/* =========================
-   КАБИНЕТ
-========================= */
-
-function cellCab(v){
-
-    let s =
-        String(v ?? '');
-
-    let m =
-        s.match(
-            /(?:каб\.?|кабинет\s*)(\d+[А-ЯA-Za-я-]*)/i
-        );
-
-    return m
-        ? 'Каб. ' + m[1]
-        : '';
-}
-
-
-/* =========================
-   ДЕНЬ
-========================= */
-
-function isDay(v){
-
-    return /^(пн|понедельник|вт|вторник|ср|среда|чт|четверг|пт|пятница|сб|суббота|вс|воскресенье)$/i
-        .test(
-            String(v).trim()
-        );
-}
-
-
-/* =========================
-   ИЗВЛЕЧЕНИЕ РАСПИСАНИЯ
-========================= */
-
-function extract(
-    schedule,
-    date,
-    group
-){
-
-    let out = [];
-
-    for(
-        const sh of schedule
-    ){
-
-        let rows =
-            sh.data;
-
-        let groupCols = [];
-
-        /*
-         * Проверяем заголовки
-         * первых 10 строк.
-         */
-
-        rows
-            .slice(0,10)
-            .forEach(
-                (r,ri) =>
-                    r.forEach(
-                        (c,ci) => {
-
-                            if(
-                                groupMatches(
-                                    c,
-                                    group
-                                )
-                            ){
-
-                                groupCols.push({
-                                    ri,
-                                    ci
-                                });
-                            }
-                        }
-                    )
-            );
-
-        if(
-            !groupCols.length
-        ){
-            continue;
-        }
-
-        let activeDay =
-            weekday(date);
-
-        let daySeen = false;
-
-        for(
-            let ri = 0;
-            ri < rows.length;
-            ri++
-        ){
-
-            let r =
-                rows[ri];
-
-            let joined =
-                r
-                    .map(String)
-                    .join(' ')
-                    .trim();
-
-            for(
-                let c of r
-            ){
-
-                if(
-                    isDay(c)
-                ){
-
-                    activeDay =
-                        String(c).trim();
-
-                    daySeen =
-                        activeDay
-                            .toLowerCase()
-                            .startsWith(
-                                weekday(date)
-                                    .slice(0,3)
-                            );
-                }
-            }
-
-            if(
-                !daySeen &&
-                joined &&
-                new RegExp(
-                    weekday(date).slice(0,3),
-                    'i'
-                ).test(joined)
-            ){
-
-                daySeen = true;
-            }
-
-            if(
-                !daySeen &&
-                ri > 5
-            ){
-                continue;
-            }
-
-            let values = [];
-
-            for(
-                let gc of groupCols
-            ){
-
-                let v =
-                    String(
-                        r[gc.ci] ?? ''
-                    ).trim();
-
-                if(v){
-                    values.push(v);
-                }
-            }
-
-            if(values.length){
-
-                let all =
-                    r
-                        .map(String)
-                        .filter(
-                            x =>
-                                x.trim()
-                        );
-
-                let time =
-                    all
-                        .map(cellTime)
-                        .find(Boolean) || '';
-
-                let cab =
-                    all
-                        .map(cellCab)
-                        .find(Boolean) || '';
-
-                let subject =
-                    values.find(
-                        v =>
-                            !cellTime(v) &&
-                            !cellCab(v) &&
-                            !isDay(v)
-                    ) ||
-                    values[0];
-
-                if(
-                    subject &&
-                    subject.length > 1
-                ){
-
-                    out.push({
-                        time,
-                        subject,
-                        cab,
-                        teacher:'',
-                        sheet:sh.name
-                    });
-                }
-            }
-        }
-    }
-
-    return dedupe(out);
-}
-
-
-/* =========================
-   ДУБЛИКАТЫ
-========================= */
-
-function dedupe(a){
-
-    let s =
-        new Set();
-
-    return a.filter(
-        x => {
-
-            let k =
-                [
-                    x.time,
-                    x.subject,
-                    x.cab,
-                    x.sheet
-                ].join('|');
-
-            if(
-                s.has(k)
-            ){
-                return false;
-            }
-
-            s.add(k);
-
-            return true;
-        }
-    );
-}
-
-
-/* =========================
-   РЕЗЕРВНЫЙ ВЫВОД
-========================= */
-
-function rawFallback(
-    schedule
-){
-
-    let rows = [];
-
-    schedule.forEach(
-        sh =>
-            sh.data.forEach(
-                r => {
-
-                    let vals =
-                        r
-                            .map(
-                                x =>
-                                    String(
-                                        x ?? ''
-                                    ).trim()
-                            )
-                            .filter(Boolean);
-
-                    if(
-                        vals.length
-                    ){
-
-                        rows.push({
-                            subject:
-                                vals
-                                    .slice(0,4)
-                                    .join(' • '),
-
-                            time:
-                                vals
-                                    .map(cellTime)
-                                    .find(Boolean) ||
-                                '',
-
-                            cab:
-                                vals
-                                    .map(cellCab)
-                                    .find(Boolean) ||
-                                '',
-
-                            sheet:sh.name
-                        });
-                    }
-                }
-            )
-    );
-
-    return rows.slice(
-        0,
-        80
-    );
-}
-
-
-/* =========================
-   ОТРИСОВКА
-========================= */
-
-function render(){
-
-    document.getElementById(
-        'date'
-    ).value =
-        state.date;
-
-    renderWeek();
-
-    let c =
-        document.getElementById(
-            'content'
-        );
-
-    if(
-        !state.files.length
-    ){
-
-        c.innerHTML =
-            '<div class="empty">' +
-            'Расписание пока не загружено.' +
-            '<br><br>' +
-            'Нажми «Обновить».' +
-            '</div>';
-
-        return;
-    }
-
-    let f =
-        chooseFile(
-            state.date
-        );
-
-    if(!f){
-
-        c.innerHTML =
-            '<div class="empty">' +
-            'Для этой даты файл расписания не найден.' +
-            '</div>';
-
-        return;
-    }
-
-    let sched =
-        parseFile(f);
-
-    if(
-        !state.group
-    ){
-
-        c.innerHTML =
-            '<div class="empty">' +
-            'Выбери группу выше.' +
-            '</div>';
-
-        return;
-    }
-
-    let lessons =
-        extract(
-            sched,
-            state.date,
-            state.group
-        );
-
-    if(
-        !lessons.length
-    ){
-
-        lessons =
-            rawFallback(
-                sched
-            );
-    }
-
-    let title =
-        weekday(
-            state.date
-        );
-
-    c.innerHTML =
-        `<div class="day">
-            ${title}
-            <small>
-                ${fmt(state.date)}
-            </small>
-        </div>`;
-
-    if(
-        !lessons.length
-    ){
-
-        c.innerHTML +=
-            '<div class="empty">' +
-            'Для выбранной группы занятий не найдено.' +
-            '</div>';
-
-        return;
-    }
-
-    lessons.forEach(
-        l => {
-
-            let el =
-                document.createElement(
-                    'div'
-                );
-
-            el.className =
-                'lesson';
-
-            el.innerHTML =
-                `<div class="time">
-                    ${l.time || 'Занятие'}
-                </div>
-
-                <div class="subject">
-                    ${esc(l.subject)}
-                </div>
-
-                <div class="meta">
-                    ${
-                        l.cab
-                        ? '<span class="pill">' +
-                          esc(l.cab) +
-                          '</span>'
-                        : ''
-                    }
-
-                    ${
-                        l.teacher
-                        ? '<span class="pill">' +
-                          esc(l.teacher) +
-                          '</span>'
-                        : ''
-                    }
-
-                    ${
-                        l.sheet
-                        ? '<span class="pill">' +
-                          esc(l.sheet) +
-                          '</span>'
-                        : ''
-                    }
-                </div>`;
-
-            c.appendChild(el);
-        }
-    );
-
-    setStatus(
-        'Актуальный файл: ' +
-        f.name
-    );
-}
-
-
-/* =========================
-   ЭКРАНИРОВАНИЕ
-========================= */
-
-function esc(s){
-
-    return String(s).replace(
-        /[&<>"']/g,
-        m =>
-            ({
-                '&':'&amp;',
-                '<':'&lt;',
-                '>':'&gt;',
-                '"':'&quot;',
-                "'":'&#39;'
-            }[m])
-    );
-}
-
-
-/* =========================
-   СПИСОК ГРУПП
-========================= */
-
-function fillGroups(){
-
-    let sel =
-        document.getElementById(
-            'group'
-        );
-
-    let gs =
-        findGroups();
-
-    if(
-        !gs.length
-    ){
-
-        sel.innerHTML =
-            '<option value="">' +
-            'Группы не найдены' +
-            '</option>';
-
-        setStatus(
-            'Не удалось найти группы',
-            false,
-            true
-        );
-
-        return;
-    }
-
-    sel.innerHTML =
-        gs
-            .map(
-                g =>
-                    `<option value="${esc(g)}">
-                        ${esc(g)}
-                    </option>`
-            )
-            .join('');
-
-    if(
-        state.group &&
-        gs.includes(
-            state.group
-        )
-    ){
-
-        sel.value =
-            state.group;
-
-    }else{
-
-        state.group =
-            gs[0];
-
-        sel.value =
-            gs[0];
-
-        localStorage.setItem(
-            'group',
-            state.group
-        );
-    }
-
-    console.log(
-        'Найдено групп:',
-        gs.length
-    );
-
-    console.log(
-        'Группы:',
-        gs
-    );
-}
-
-
-/* =========================
+/* =========================================================
    ДАННЫЕ ОТ ANDROID
-========================= */
+========================================================= */
+
 
 window.onNativeFiles =
     function(json){
 
         try{
 
-            const newFiles =
+            const received =
                 JSON.parse(
                     json
-                ).map(
-                    x => ({
-                        name:x.name,
-                        data:x.data
-                    })
                 );
 
-            /*
-             * Проверяем, действительно ли
-             * расписание изменилось.
-             */
-
-            const oldSignature =
-                state.files
-                    .map(
-                        f => f.name + ':' + f.data.length
-                    )
-                    .join('|');
-
-            const newSignature =
-                newFiles
-                    .map(
-                        f => f.name + ':' + f.data.length
-                    )
-                    .join('|');
 
             state.files =
-                newFiles;
+                received.map(
+                    function(item){
 
-            cache = {};
+                        return {
+
+                            name:
+                                item.name,
+
+                            data:
+                                item.data
+
+                        };
+
+                    }
+                );
+
+
+            /*
+             * После нового Excel
+             * очищаем старый кэш.
+             */
+
+            parsedCache = {};
+
+
+            /*
+             * Определяем актуальную дату
+             * из самого расписания.
+             */
+
+            ensureValidDate();
+
+
+            /*
+             * Заново получаем группы
+             * из строки 2 Excel.
+             */
 
             fillGroups();
 
+
+            /*
+             * Показываем расписание.
+             */
+
             render();
 
-            syncRunning = false;
-
-            if(
-                oldSignature ===
-                newSignature
-            ){
-
-                updateLastSync();
-
-                setStatus(
-                    'Расписание актуально • ' +
-                    formatTime(
-                        new Date()
-                    )
-                );
-
-            }else{
-
-                updateLastSync();
-
-                setStatus(
-                    'Расписание обновлено • ' +
-                    formatTime(
-                        new Date()
-                    )
-                );
-            }
-
-        }catch(e){
 
             syncRunning = false;
+
+
+            lastSyncTime =
+                Date.now();
+
+
+            localStorage.setItem(
+                "lastSyncTime",
+                String(
+                    lastSyncTime
+                )
+            );
+
+
+            setStatus(
+                "Расписание обновлено • " +
+                new Intl.DateTimeFormat(
+                    "ru-RU",
+                    {
+                        hour:"2-digit",
+                        minute:"2-digit"
+                    }
+                ).format(
+                    new Date()
+                )
+            );
+
+
+        }catch(error){
 
             console.error(
-                'Ошибка обработки файлов:',
-                e
+                "Ошибка обработки расписания:",
+                error
             );
 
-            onNativeError(
-                'Не удалось обработать расписание'
+
+            syncRunning = false;
+
+
+            setStatus(
+                "Ошибка обработки расписания",
+                false,
+                true
             );
+
         }
+
     };
 
 
-/* =========================
-   ОШИБКА
-========================= */
+
+/* =========================================================
+   ОШИБКА ANDROID
+========================================================= */
+
 
 window.onNativeError =
-    function(msg){
+    function(message){
 
         syncRunning = false;
 
+
         setStatus(
-            msg ||
-            'Ошибка обновления',
+            message ||
+            "Ошибка обновления",
             false,
             true
         );
 
+
+        /*
+         * Не удаляем старое расписание.
+         *
+         * Если интернет пропал,
+         * пользователь продолжает видеть
+         * ранее загруженные данные.
+         */
+
         render();
+
     };
 
 
-/* =========================
+
+/* =========================================================
+   ИСТОЧНИК
+========================================================= */
+
+
+function openSource(){
+
+    Android.openSource();
+
+}
+
+
+
+/* =========================================================
    ИНФОРМАЦИЯ
-========================= */
+========================================================= */
+
 
 function showInfo(){
 
     alert(
-        'Расписание\n\n' +
-        'Источник: Mail Облако\n' +
-        'Автоматическая проверка: каждые ' +
+        "Расписание\n\n" +
+
+        "Источник: Mail Облако\n\n" +
+
+        "Автоматическая проверка: " +
         AUTO_UPDATE_MINUTES +
-        ' минут.\n\n' +
-        'Также обновление выполняется ' +
-        'при возвращении в приложение.\n\n' +
-        'Источник:\n' +
-        'https://cloud.mail.ru/public/vH1B/7LrFtqWqP'
+        " минут.\n\n" +
+
+        "При возвращении в приложение " +
+        "также выполняется проверка.\n\n" +
+
+        "Если интернет недоступен, " +
+        "используется последнее загруженное расписание."
     );
+
 }
 
 
-/* =========================
-   ЗАПУСК
-========================= */
+
+/* =========================================================
+   СТАРТ ПРИЛОЖЕНИЯ
+========================================================= */
+
 
 (function(){
 
-    document.getElementById(
-        'date'
-    ).value =
-        state.date;
+    /*
+     * Сначала показываем сохранённые данные.
+     */
 
     render();
 
+
     /*
-     * Первое обновление сразу
-     * после запуска.
+     * Сразу после запуска
+     * проверяем новое расписание.
      */
 
     setStatus(
-        'Проверяю обновления…',
+        "Проверяю расписание…",
         true
     );
 
-    Android.sync();
+
+    try{
+
+        Android.sync();
+
+    }catch(error){
+
+        setStatus(
+            "Ошибка запуска обновления",
+            false,
+            true
+        );
+
+    }
+
 
     /*
-     * Автоматические обновления
-     * каждые 10 минут.
+     * Далее каждые 10 минут.
      */
 
     startAutoUpdate();
 
 })();
 
+
 </script>
 
 </body>
+
 </html>
