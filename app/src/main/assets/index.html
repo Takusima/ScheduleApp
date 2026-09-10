@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<title>Расписание</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#0b0d12;--card:#141821;--card2:#1a1f2a;--text:#f5f7fb;--muted:#9098a8;--accent:#8b7cff;--accent2:#aa9fff;--line:#272d38;--ok:#61d7a4;}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 600px at 90% -10%,#2c2452 0%,transparent 55%),var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+.app{max-width:720px;margin:auto;padding:24px 16px 100px}.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.title{font-size:32px;font-weight:800;letter-spacing:-1px}.sub{color:var(--muted);font-size:14px;margin-top:4px}.icon{border:0;background:var(--card);color:var(--text);width:44px;height:44px;border-radius:14px;font-size:20px}.hero{background:linear-gradient(145deg,rgba(139,124,255,.23),rgba(22,26,36,.85));border:1px solid #33315a;border-radius:24px;padding:18px;box-shadow:0 18px 40px rgba(0,0,0,.22);margin-bottom:14px}.row{display:flex;gap:10px;align-items:center}.select,.date{background:rgba(12,14,19,.68);border:1px solid var(--line);color:var(--text);border-radius:15px;padding:14px;width:100%;font-size:16px;outline:none}.small{font-size:12px;color:var(--muted);margin:14px 0 6px}.chips{display:flex;gap:8px;overflow:auto;padding:2px 1px 8px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}.chip{white-space:nowrap;padding:11px 14px;border-radius:13px;background:var(--card);border:1px solid var(--line);color:var(--muted);font-weight:600}.chip.active{background:var(--accent);border-color:var(--accent);color:#fff}.actions{display:flex;gap:10px;margin-top:12px}.btn{flex:1;border:0;border-radius:15px;padding:14px 16px;font-weight:800;font-size:15px}.primary{background:var(--accent);color:#fff}.secondary{background:var(--card2);color:var(--text);border:1px solid var(--line)}.status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;margin:8px 2px}.dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}.day{margin:18px 0 10px;font-weight:800;font-size:20px}.day small{font-weight:500;color:var(--muted);font-size:13px;margin-left:8px}.lesson{background:linear-gradient(180deg,var(--card),#11151c);border:1px solid var(--line);border-radius:20px;padding:15px;margin:10px 0;position:relative;overflow:hidden}.lesson:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}.time{color:var(--accent2);font-weight:800;font-size:13px}.subject{font-size:18px;font-weight:800;margin-top:5px;line-height:1.22}.meta{color:var(--muted);font-size:13px;margin-top:7px;display:flex;flex-wrap:wrap;gap:7px}.pill{background:#202631;border-radius:10px;padding:5px 8px}.empty{padding:30px 16px;text-align:center;color:var(--muted);background:var(--card);border:1px dashed var(--line);border-radius:20px}.footer{position:fixed;left:0;right:0;bottom:0;padding:10px 16px;background:linear-gradient(180deg,transparent,rgba(11,13,18,.96) 35%)}.footerin{max-width:720px;margin:auto;display:flex;gap:8px;background:#11151d;border:1px solid var(--line);padding:6px;border-radius:19px}.nav{flex:1;border:0;background:transparent;color:var(--muted);padding:10px;border-radius:13px;font-weight:700}.nav.active{background:var(--card2);color:var(--text)}.sheet{margin-top:16px}.hidden{display:none!important}.loading{animation:pulse 1.3s infinite}@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><div><div class="title">Расписание</div><div class="sub" id="source">Mail Облако • автоматическая синхронизация</div></div><button class="icon" onclick="Android.openSource()">↗</button></div>
+  <div class="hero">
+    <div class="small">Группа</div><select id="group" class="select" onchange="state.group=this.value;save()"><option value="">Загрузка групп…</option></select>
+    <div class="small">Дата</div><input id="date" class="date" type="date" onchange="state.date=this.value;render()">
+    <div class="actions"><button class="btn primary" onclick="Android.sync();setStatus('Обновляю расписание…',true)">↻ Обновить</button><button class="btn secondary" onclick="today()">Сегодня</button></div>
+  </div>
+  <div class="status"><span id="dot" class="dot"></span><span id="status">Готово</span></div>
+  <div class="chips" id="week"></div>
+  <div id="content"></div>
+</div>
+<div class="footer"><div class="footerin"><button class="nav active">Расписание</button><button class="nav" onclick="document.getElementById('date').showPicker?.()">Календарь</button><button class="nav" onclick="showInfo()">Настройки</button></div></div>
+<script>
+const state={files:[],group:localStorage.getItem('group')||'',date:localStorage.getItem('date')||new Date().toISOString().slice(0,10)};
+let cache={};
+function save(){localStorage.setItem('group',state.group);localStorage.setItem('date',state.date);render()}
+function setStatus(t,loading=false){document.getElementById('status').textContent=t;document.getElementById('dot').classList.toggle('loading',loading)}
+function today(){state.date=new Date().toISOString().slice(0,10);document.getElementById('date').value=state.date;save()}
+function fmt(d){return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long'}).format(new Date(d+'T12:00:00'))}
+function weekday(d){return new Intl.DateTimeFormat('ru-RU',{weekday:'long'}).format(new Date(d+'T12:00:00'))}
+function iso(d){return d.toISOString().slice(0,10)}
+function weekDays(center){let d=new Date(center+'T12:00:00');let n=(d.getDay()+6)%7;d.setDate(d.getDate()-n);let a=[];for(let i=0;i<7;i++){let x=new Date(d);x.setDate(d.getDate()+i);a.push(iso(x))}return a}
+function renderWeek(){let el=document.getElementById('week');el.innerHTML='';weekDays(state.date).forEach(x=>{let b=document.createElement('button');b.className='chip'+(x===state.date?' active':'');b.textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'short',day:'numeric'}).format(new Date(x+'T12:00:00'));b.onclick=()=>{state.date=x;document.getElementById('date').value=x;save()};el.appendChild(b)})}
+function getStartDate(name){let m=name.match(/(20\d{2})[._-]?(\d{1,2})[._-]?(\d{1,2})/);if(m)return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;m=name.match(/(?:с|from|c)\s*(\d{1,2})[._-](\d{1,2})[._-](20\d{2})/i);if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;return '1900-01-01'}
+function chooseFile(date){let ok=state.files.filter(f=>getStartDate(f.name)<=date).sort((a,b)=>getStartDate(b.name).localeCompare(getStartDate(a.name)));return ok[0]||null}
+function parseFile(f){if(cache[f.name])return cache[f.name];try{let bin=atob(f.data),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);let wb=XLSX.read(bytes,{type:'array',cellDates:true});let sheets=wb.SheetNames.map(n=>({name:n,data:XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:''})}));cache[f.name]=sheets;return sheets}catch(e){return []}}
+function findGroups(){let set=new Set();state.files.forEach(f=>parseFile(f).forEach(s=>s.data.slice(0,30).forEach(r=>r.forEach(c=>{let v=String(c??'').trim();if(!v)return;if(/\bгрупп(а|ы|е)?\b/i.test(v)||/^\d{1,3}\s*[-–]?\s*[А-ЯA-Za-z]{0,4}\d{0,2}$/.test(v))set.add(v)}))));return [...set].slice(0,80)}
+function groupMatches(v,g){return String(v??'').toLowerCase().replace(/\s+/g,' ').includes(g.toLowerCase().replace(/\s+/g,' '))}
+function cellTime(v){let s=String(v??'');let m=s.match(/\b\d{1,2}[:.]\d{2}\s*[-–—]\s*\d{1,2}[:.]\d{2}\b/);return m?m[0].replace(/\./g,':'):''}
+function cellCab(v){let s=String(v??'');let m=s.match(/(?:каб\.?|кабинет\s*)(\d+[А-ЯA-Za-zа-яА-Я-]*)/i);return m?'Каб. '+m[1]:''}
+function isDay(v){return /^(пн|понедельник|вт|вторник|ср|среда|чт|четверг|пт|пятница|сб|суббота|вс|воскресенье)$/i.test(String(v).trim())}
+function extract(schedule,date,group){let out=[];for(const sh of schedule){let rows=sh.data;let groupCols=[];rows.slice(0,20).forEach((r,ri)=>r.forEach((c,ci)=>{if(groupMatches(c,group))groupCols.push({ri,ci})}));if(!groupCols.length)continue;let activeDay=weekday(date);let daySeen=false;for(let ri=0;ri<rows.length;ri++){let r=rows[ri];let joined=r.map(String).join(' ').trim();for(let c of r){if(isDay(c)){activeDay=String(c).trim();daySeen=activeDay.toLowerCase().startsWith(weekday(date).slice(0,3));}}
+ if(!daySeen && joined && new RegExp(weekday(date).slice(0,3),'i').test(joined))daySeen=true;
+ if(!daySeen && ri>5) continue;
+ let values=[];for(let gc of groupCols){let v=String(r[gc.ci]??'').trim();if(v)values.push(v)}
+ if(values.length){let all=r.map(String).filter(x=>x.trim());let time=all.map(cellTime).find(Boolean)||'';let cab=all.map(cellCab).find(Boolean)||'';let subject=values.find(v=>!cellTime(v)&&!cellCab(v)&&!isDay(v))||values[0];if(subject && subject.length>1)out.push({time,subject,cab,teacher:'',sheet:sh.name})}
+ }}return dedupe(out)}
+function dedupe(a){let s=new Set();return a.filter(x=>{let k=[x.time,x.subject,x.cab,x.sheet].join('|');if(s.has(k))return false;s.add(k);return true})}
+function rawFallback(schedule){let rows=[];schedule.forEach(sh=>sh.data.forEach((r,ri)=>{let vals=r.map(x=>String(x??'').trim()).filter(Boolean);if(vals.length)rows.push({subject:vals.slice(0,4).join(' • '),time:vals.map(cellTime).find(Boolean)||'',cab:vals.map(cellCab).find(Boolean)||'',sheet:sh.name})}));return rows.slice(0,80)}
+function render(){document.getElementById('date').value=state.date;renderWeek();let c=document.getElementById('content');if(!state.files.length){c.innerHTML='<div class="empty">Расписание пока не загружено.<br><br>Нажми «Обновить».</div>';return}let f=chooseFile(state.date);if(!f){c.innerHTML='<div class="empty">Для этой даты файл расписания не найден.</div>';return}let sched=parseFile(f);if(!state.group){c.innerHTML='<div class="empty">Выбери группу выше.</div>';return}let lessons=extract(sched,state.date,state.group);if(!lessons.length)lessons=rawFallback(sched);let title=weekday(state.date);c.innerHTML=`<div class="day">${title}<small>${fmt(state.date)}</small></div>`;if(!lessons.length){c.innerHTML+='<div class="empty">Для выбранной группы занятий не найдено.</div>';return}lessons.forEach(l=>{let el=document.createElement('div');el.className='lesson';el.innerHTML=`<div class="time">${l.time||'Занятие'}</div><div class="subject">${esc(l.subject)}</div><div class="meta">${l.cab?'<span class="pill">'+esc(l.cab)+'</span>':''}${l.teacher?'<span class="pill">'+esc(l.teacher)+'</span>':''}${l.sheet?'<span class="pill">'+esc(l.sheet)+'</span>':''}</div>`;c.appendChild(el)});setStatus('Актуальный файл: '+f.name)}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function fillGroups(){let sel=document.getElementById('group');let gs=findGroups();if(!gs.length){sel.innerHTML='<option value="">Введите группу</option>';sel.onchange=()=>{state.group=sel.value;save()};return}sel.innerHTML=gs.map(g=>`<option>${esc(g)}</option>`).join('');if(state.group && gs.includes(state.group))sel.value=state.group;else{state.group=gs[0];sel.value=gs[0];save()}}
+window.onNativeFiles=function(json){try{state.files=JSON.parse(json).map(x=>({name:x.name,data:x.data}));cache={};fillGroups();setStatus('Расписание обновлено');render()}catch(e){onNativeError('Не удалось обработать файлы')}};
+window.onNativeError=function(msg){setStatus(msg||'Ошибка',false);render()};
+function showInfo(){alert('Расписание • источник Mail Облако\nАвтоматически выбирается файл по дате его начала.\n\nИсточник: https://cloud.mail.ru/public/vH1B/7LrFtqWqP')}
+(function(){document.getElementById('date').value=state.date;render();Android.sync();setStatus('Проверяю обновления…',true)})();
+</script>
+</body></html>
