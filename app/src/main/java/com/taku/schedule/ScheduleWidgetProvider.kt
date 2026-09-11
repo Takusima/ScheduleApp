@@ -25,8 +25,7 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             val component = ComponentName(context, ScheduleWidgetProvider::class.java)
             val ids = manager.getAppWidgetIds(component)
             if (ids.isNotEmpty()) {
-                val provider = ScheduleWidgetProvider()
-                provider.updateAll(context, manager, ids)
+                ScheduleWidgetProvider().updateAll(context, manager, ids)
             }
         }
 
@@ -57,12 +56,9 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
 
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
-        updateAll(
-            context,
-            AppWidgetManager.getInstance(context),
-            AppWidgetManager.getInstance(context)
-                .getAppWidgetIds(ComponentName(context, ScheduleWidgetProvider::class.java))
-        )
+        val manager = AppWidgetManager.getInstance(context)
+        val ids = manager.getAppWidgetIds(ComponentName(context, ScheduleWidgetProvider::class.java))
+        updateAll(context, manager, ids)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -85,7 +81,10 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
     private fun buildViews(context: Context): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_schedule)
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val accent = parseColor(prefs.getString(KEY_ACCENT, "#A66CFF"), Color.rgb(166, 108, 255))
+        val accent = Companion.parseColor(
+            prefs.getString(KEY_ACCENT, "#A66CFF"),
+            Color.rgb(166, 108, 255)
+        )
         val json = prefs.getString(KEY_JSON, "[]") ?: "[]"
         val data = WidgetDataParser.parse(json)
 
@@ -94,7 +93,6 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         views.setTextColor(R.id.widget_meta, Color.rgb(170, 163, 176))
         views.setTextColor(R.id.widget_progress_text, accent)
         views.setTextColor(R.id.widget_next, Color.rgb(205, 198, 209))
-
         views.setTextViewText(R.id.widget_group, data.groupLabel)
         views.setTextViewText(R.id.widget_title, data.title)
         views.setTextViewText(R.id.widget_meta, data.meta)
@@ -120,7 +118,8 @@ private data class WidgetLesson(
     val date: String,
     val time: String,
     val lesson: String,
-    val room: String
+    val room: String,
+    val group: String
 )
 
 private data class WidgetState(
@@ -144,7 +143,8 @@ private object WidgetDataParser {
                             item.optString("date"),
                             item.optString("time"),
                             item.optString("lesson"),
-                            item.optString("room")
+                            item.optString("room"),
+                            item.optString("group")
                         )
                     )
                 }
@@ -153,6 +153,7 @@ private object WidgetDataParser {
             emptyList()
         }
 
+        val group = lessons.firstOrNull { it.group.isNotBlank() }?.group ?: "10 м/с"
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Calendar.getInstance().time)
         val todayLessons = lessons
             .filter { it.date == today }
@@ -160,7 +161,7 @@ private object WidgetDataParser {
 
         if (todayLessons.isEmpty()) {
             return WidgetState(
-                "КМК • 10 м/с",
+                "КМК • $group",
                 "Сегодня пар нет",
                 "Расписание свободно",
                 "—",
@@ -179,7 +180,7 @@ private object WidgetDataParser {
             val elapsed = (nowMinutes - toMinutes(current.time)).coerceAtLeast(0)
             val progress = (elapsed / 90f * 100).roundToInt().coerceIn(0, 100)
             WidgetState(
-                "КМК • 10 м/с",
+                "КМК • ${current.group.ifBlank { group }}",
                 current.lesson,
                 buildMeta(current),
                 "Идёт • $progress%",
@@ -188,7 +189,7 @@ private object WidgetDataParser {
             )
         } else if (next != null) {
             WidgetState(
-                "КМК • 10 м/с",
+                "КМК • ${next.group.ifBlank { group }}",
                 "Следующая пара",
                 "${next.time} • ${next.lesson}",
                 "До начала • ${formatCountdown(nowMinutes, toMinutes(next.time))}",
@@ -197,7 +198,7 @@ private object WidgetDataParser {
             )
         } else {
             WidgetState(
-                "КМК • 10 м/с",
+                "КМК • $group",
                 "На сегодня всё 🎉",
                 "Все пары закончились",
                 "100%",
