@@ -1403,59 +1403,31 @@ function isLectureSheet(sheetName) {
    ========================================================= */
 
 function findGroupsInSheet(rows) {
-
     const result = [];
+    const maxRows = Math.min(rows.length, 6);
 
-    /*
-     * Группы находятся в первых строках.
-     * Из-за объединённых ячеек нельзя смотреть
-     * только одну строку.
-     */
-    const maxRows =
-        Math.min(
-            rows.length,
-            6
-        );
+    for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
+        const row = rows[rowIndex] || [];
 
-    for (
-        let rowIndex = 0;
-        rowIndex < maxRows;
-        rowIndex++
-    ) {
+        for (let column = 0; column < row.length - 1; column++) {
+            const left = clean(row[column]);
+            const right = clean(row[column + 1]);
 
-        const row =
-            rows[rowIndex] || [];
-
-        for (
-            let column = 0;
-            column < row.length;
-            column++
-        ) {
-
-            const value =
-                clean(row[column]);
-
-            if (
-                !isGroupName(value)
-            ) {
+            if (!/^каб\.?$/i.test(left)) {
                 continue;
             }
 
-            /*
-             * Не добавляем одинаковые группы.
-             */
-            if (
-                result.some(
-                    item =>
-                        item.name === value
-                )
-            ) {
+            if (!isGroupName(right)) {
+                continue;
+            }
+
+            if (result.some(item => item.name === right)) {
                 continue;
             }
 
             result.push({
-                name: value,
-                column: column
+                name: right,
+                column: column + 1
             });
         }
     }
