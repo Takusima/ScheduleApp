@@ -13,28 +13,52 @@ import java.util.zip.ZipInputStream
 object ScheduleRepository {
 
     const val PUBLIC_CODE = "vH1B/7LrFtqWqP"
+
     const val PUBLIC_URL =
         "https://cloud.mail.ru/public/$PUBLIC_CODE"
 
-    private const val CACHE_DIR = "schedule_cache"
-    private const val TEMP_DIR = "schedule_cache_tmp"
+    private const val ZIP_API_URL =
+        "https://cloud.mail.ru/api/v3/zip/weblink"
 
-    fun cacheDir(context: Context): File {
+    private const val CACHE_DIR =
+        "schedule_cache"
+
+    private const val TEMP_DIR =
+        "schedule_cache_tmp"
+
+    private const val OLD_CACHE_DIR =
+        "schedule_cache_old"
+
+    private const val USER_AGENT =
+        "ScheduleApp/1.0"
+
+    /**
+     * Папка локального кэша расписания.
+     */
+    fun cacheDir(
+        context: Context
+    ): File {
         return File(
             context.filesDir,
             CACHE_DIR
         )
     }
 
-    fun readCachedFiles(context: Context): List<File> {
+    /**
+     * Возвращает сохранённые Excel-файлы.
+     *
+     * Только XLS и XLSX.
+     * PPTX и другие файлы игнорируются.
+     */
+    fun readCachedFiles(
+        context: Context
+    ): List<File> {
+
         return cacheDir(context)
             .listFiles()
-            ?.filter {
-                it.isFile &&
-                        (
-                                it.extension.equals("xlsx", true) ||
-                                        it.extension.equals("xls", true)
-                                )
+            ?.filter { file ->
+                file.isFile &&
+                        isExcelFile(file.name)
             }
             ?.sortedBy {
                 it.name.lowercase()
@@ -43,131 +67,120 @@ object ScheduleRepository {
     }
 
     /**
-     * Загружает Excel-файлы из публичной папки Mail Облака.
+     * Основная синхронизация с Mail Облаком.
      *
-     * Сначала используется ZIP endpoint.
-     * Если он недоступен — пробуем получить прямую
-     * ссылку со страницы публичной папки.
+     * Mail.ru:
      *
-     * Старый кэш заменяется только после успешного
-     * получения хотя бы одного Excel-файла.
+     * public code
+     *      ↓
+     * /api/v3/zip/weblink
+     *      ↓
+     * временная ZIP-ссылка
+     *      ↓
+     * ZIP
+     *      ↓
+     * только XLS/XLSX
+     *      ↓
+     * локальный кэш
+     *
+     * Старый кэш не удаляется до тех пор,
+     * пока новые файлы полностью не будут подготовлены.
      */
     fun downloadFromCloud(
         context: Context
     ): List<File> {
 
-        var lastError: Exception? = null
+        val temp =
+            File(
+                context.filesDir,
+                TEMP_DIR
+            )
 
-        /*
-         * Вариант 1.
-         * Получаем ZIP публичной ссылки.
-         */
-        try {
+        temp.deleteRecursively()
+        temp.mkdirs()
 
+        return try {
+
+            /*
+             * 1. Получаем новую временную ZIP-ссылку.
+             */
             val zipUrl =
                 createZipLink()
 
+            /*
+             * 2. Скачиваем архив.
+             */
             val zipBytes =
-                httpGetBytes(zipUrl)
-
-            val files =
-                extractExcelToTemp(
-                    context,
-                    zipBytes
+                httpGetBytes(
+                    zipUrl
                 )
 
-            if (files.isNotEmpty()) {
-                return replaceCache(
-                    context,
-                    files
-                )
-            }
-
-        } catch (e: Exception) {
-
-            lastError = e
-        }
-
-        /*
-         * Вариант 2.
-         * Пробуем найти прямую ссылку на содержимое
-         * публичной папки.
-         */
-        try {
-
-            val directUrl =
-                findDirectPublicUrl()
-
-            val bytes =
-                httpGetBytes(directUrl)
-
-            val temp =
-                File(
-                    context.filesDir,
-                    TEMP_DIR
-                ).apply {
-                    deleteRecursively()
-                    mkdirs()
-                }
-
-            val extracted =
-                extractExcelOrZip(
-                    temp,
-                    bytes
-                )
-
-            if (extracted.isNotEmpty()) {
-
-                return replaceCache(
-                    context,
-                    extracted
+            if (zipBytes.isEmpty()) {
+                throw IllegalStateException(
+                    "Mail Облако вернуло пустой архив"
                 )
             }
 
             /*
-             * Иногда ссылка возвращает непосредственно
-             * XLSX-файл.
+             * 3. Извлекаем только Excel.
              */
-            if (looksLikeXlsx(bytes)) {
+            val extracted =
+                unzipExcel(
+                    zipBytes,
+                    temp
+                )
 
-                val file =
-                    File(
-                        temp,
-                        "schedule.xlsx"
-                    )
-
-                file.writeBytes(bytes)
-
-                return replaceCache(
-                    context,
-                    listOf(file)
+            if (extracted.isEmpty()) {
+                throw IllegalStateException(
+                    "В архиве Mail Облака не найдено Excel-файлов"
                 )
             }
 
-            temp.deleteRecursively()
+            /*
+             * 4. Проверяем каждый файл.
+             */
+            extracted.forEach { file ->
 
-            throw IllegalStateException(
-                "Mail Облако не вернул Excel-файл"
+                if (
+                    !file.exists() ||
+                    !file.isFile ||
+                    file.length() <= 0
+                ) {
+                    throw IllegalStateException(
+                        "Повреждённый Excel-файл: ${file.name}"
+                    )
+                }
+            }
+
+            /*
+             * 5. Только теперь заменяем кэш.
+             */
+            replaceCache(
+                context,
+                extracted
             )
 
         } catch (e: Exception) {
 
-            lastError = e
-        }
+            /*
+             * Старый кэш не трогаем.
+             */
+            temp.deleteRecursively()
 
-        throw IllegalStateException(
-            "Не удалось скачать расписание из Mail Облака" +
-                    (
-                            lastError?.message?.let {
-                                ": $it"
-                            } ?: ""
-                            )
-        )
+            throw IllegalStateException(
+                "Не удалось обновить расписание из Mail Облака" +
+                        (
+                                e.message?.let {
+                                    ": $it"
+                                } ?: ""
+                                ),
+                e
+            )
+        }
     }
 
     /**
-     * Копирует выбранные пользователем Excel-файлы
-     * в локальный кэш приложения.
+     * Импорт Excel-файлов через системный выбор файлов.
      */
     fun importExcelFiles(
         context: Context,
@@ -175,7 +188,6 @@ object ScheduleRepository {
     ): List<File> {
 
         if (uris.isEmpty()) {
-
             throw IllegalArgumentException(
                 "Excel-файл не выбран"
             )
@@ -185,12 +197,12 @@ object ScheduleRepository {
             File(
                 context.filesDir,
                 TEMP_DIR
-            ).apply {
-                deleteRecursively()
-                mkdirs()
-            }
+            )
 
-        try {
+        temp.deleteRecursively()
+        temp.mkdirs()
+
+        return try {
 
             uris.forEachIndexed { index, uri ->
 
@@ -201,69 +213,58 @@ object ScheduleRepository {
                     )
                         ?: "schedule_${index + 1}.xlsx"
 
+                if (!isExcelFile(originalName)) {
+                    throw IllegalArgumentException(
+                        "Выбран не Excel-файл: $originalName"
+                    )
+                }
+
                 val safeName =
                     sanitizeFileName(
                         originalName
                     )
 
-                val targetName =
-                    if (
-                        safeName.endsWith(
-                            ".xlsx",
-                            true
-                        ) ||
-                        safeName.endsWith(
-                            ".xls",
-                            true
-                        )
-                    ) {
-                        safeName
-                    } else {
-                        "$safeName.xlsx"
-                    }
-
                 val target =
                     uniqueFile(
                         temp,
-                        targetName
+                        safeName
                     )
 
-                context.contentResolver
-                    .openInputStream(uri)
-                    .use { input ->
+                val input =
+                    context.contentResolver
+                        .openInputStream(uri)
 
-                        if (input == null) {
+                if (input == null) {
+                    throw IllegalStateException(
+                        "Не удалось открыть файл: $originalName"
+                    )
+                }
 
-                            throw IllegalStateException(
-                                "Не удалось открыть файл: $originalName"
-                            )
-                        }
+                input.use { source ->
 
-                        FileOutputStream(
-                            target
-                        ).use { output ->
+                    FileOutputStream(
+                        target
+                    ).use { output ->
 
-                            input.copyTo(
-                                output
-                            )
-                        }
+                        source.copyTo(
+                            output
+                        )
                     }
+                }
+
+                if (target.length() <= 0) {
+                    throw IllegalStateException(
+                        "Файл пустой: $originalName"
+                    )
+                }
             }
 
             val files =
                 temp.listFiles()
-                    ?.filter {
-                        it.isFile &&
-                                (
-                                        it.extension.equals(
-                                            "xlsx",
-                                            true
-                                        ) ||
-                                                it.extension.equals(
-                                                    "xls",
-                                                    true
-                                                )
-                                        )
+                    ?.filter { file ->
+                        file.isFile &&
+                                isExcelFile(file.name) &&
+                                file.length() > 0
                     }
                     ?.sortedBy {
                         it.name.lowercase()
@@ -271,13 +272,12 @@ object ScheduleRepository {
                     ?: emptyList()
 
             if (files.isEmpty()) {
-
                 throw IllegalStateException(
                     "Выбранные файлы не являются Excel"
                 )
             }
 
-            return replaceCache(
+            replaceCache(
                 context,
                 files
             )
@@ -291,14 +291,19 @@ object ScheduleRepository {
     }
 
     /**
-     * Создаёт ZIP-ссылку для публичной папки Mail Облака.
+     * Получает временную ZIP-ссылку Mail Облака.
+     *
+     * Проверенный запрос:
+     *
+     * POST
+     * https://cloud.mail.ru/api/v3/zip/weblink
      */
     private fun createZipLink(): String {
 
         val connection =
             (
                     URL(
-                        "https://cloud.mail.ru/api/v3/zip/weblink"
+                        ZIP_API_URL
                     ).openConnection()
                             as HttpURLConnection
                     ).apply {
@@ -322,218 +327,130 @@ object ScheduleRepository {
 
                 setRequestProperty(
                     "User-Agent",
-                    "ScheduleApp/1.0"
+                    USER_AGENT
                 )
             }
 
-        val body =
-            JSONObject()
-                .put(
-                    "x-email",
-                    "anonym"
-                )
-                .put(
-                    "weblink_list",
-                    JSONArray().put(
-                        PUBLIC_CODE
+        try {
+
+            val body =
+                JSONObject()
+                    .put(
+                        "x-email",
+                        "anonym"
+                    )
+                    .put(
+                        "weblink_list",
+                        JSONArray().put(
+                            PUBLIC_CODE
+                        )
+                    )
+                    .put(
+                        "name",
+                        "schedule"
+                    )
+                    .toString()
+
+            connection.outputStream.use { output ->
+
+                output.write(
+                    body.toByteArray(
+                        Charsets.UTF_8
                     )
                 )
-                .put(
-                    "name",
-                    "schedule"
+            }
+
+            val responseCode =
+                connection.responseCode
+
+            val responseText =
+                readConnectionText(
+                    connection
                 )
-                .toString()
 
-        connection.outputStream.use {
-            it.write(
-                body.toByteArray(
-                    Charsets.UTF_8
+            if (responseCode !in 200..299) {
+
+                throw IllegalStateException(
+                    "Mail Облако: HTTP $responseCode"
                 )
+            }
+
+            if (responseText.isBlank()) {
+
+                throw IllegalStateException(
+                    "Mail Облако вернуло пустой ответ"
+                )
+            }
+
+            val json =
+                JSONObject(
+                    responseText
+                )
+
+            val key =
+                json.optString(
+                    "key"
+                ).trim()
+
+            if (key.isBlank()) {
+
+                throw IllegalStateException(
+                    "Mail Облако не вернуло ZIP-ссылку"
+                )
+            }
+
+            return normalizeUrl(
+                key
             )
-        }
 
-        val responseCode =
-            connection.responseCode
+        } finally {
 
-        val responseText =
-            readConnectionText(
-                connection
-            )
-
-        if (responseCode !in 200..299) {
-
-            throw IllegalStateException(
-                "Mail Cloud HTTP $responseCode"
-            )
-        }
-
-        val json =
-            JSONObject(
-                responseText
-            )
-
-        val key =
-            json.optString(
-                "key"
-            )
-
-        if (key.isBlank()) {
-
-            throw IllegalStateException(
-                "Mail Облако не вернуло ссылку на ZIP"
-            )
-        }
-
-        return when {
-
-            key.startsWith(
-                "http://"
-            ) -> key
-
-            key.startsWith(
-                "https://"
-            ) -> key
-
-            key.startsWith(
-                "/"
-            ) ->
-                "https://cloud.mail.ru$key"
-
-            else ->
-                "https://cloud.mail.ru/$key"
+            connection.disconnect()
         }
     }
 
     /**
-     * Получает публичную страницу Mail Облака
-     * и пытается найти URL weblink_get.
+     * Нормализует URL, полученный от Mail Облака.
      */
-    private fun findDirectPublicUrl(): String {
+    private fun normalizeUrl(
+        key: String
+    ): String {
 
-        val connection =
-            (
-                    URL(
-                        PUBLIC_URL
-                    ).openConnection()
-                            as HttpURLConnection
-                    ).apply {
-
-                requestMethod = "GET"
-
-                connectTimeout = 20_000
-                readTimeout = 30_000
-
-                setRequestProperty(
-                    "User-Agent",
-                    "Mozilla/5.0 ScheduleApp/1.0"
+        val value =
+            key
+                .replace(
+                    "\\/",
+                    "/"
                 )
-
-                setRequestProperty(
-                    "Accept",
-                    "text/html,application/xhtml+xml"
+                .replace(
+                    "\\u002F",
+                    "/"
                 )
-            }
+                .trim()
 
-        val responseCode =
-            connection.responseCode
+        return when {
 
-        if (responseCode !in 200..399) {
+            value.startsWith(
+                "https://"
+            ) -> value
 
-            throw IllegalStateException(
-                "Mail Cloud HTTP $responseCode"
-            )
+            value.startsWith(
+                "http://"
+            ) -> value
+
+            value.startsWith(
+                "/"
+            ) ->
+                "https://cloud.mail.ru$value"
+
+            else ->
+                "https://cloud.mail.ru/$value"
         }
-
-        val html =
-            readConnectionText(
-                connection
-            )
-
-        val patterns =
-            listOf(
-
-                Regex(
-                    "\"weblink_get\".*?\"url\"\\s*:\\s*\"([^\"]+)\"",
-                    RegexOption.DOT_MATCHES_ALL
-                ),
-
-                Regex(
-                    "weblink_get.*?url\\\\?\"\\s*:\\s*\\\\?\"([^\"]+)",
-                    RegexOption.DOT_MATCHES_ALL
-                ),
-
-                Regex(
-                    "\"url\"\\s*:\\s*\"(https://[^\"]+)\".*?weblink_get",
-                    RegexOption.DOT_MATCHES_ALL
-                )
-            )
-
-        var baseUrl: String? = null
-
-        for (pattern in patterns) {
-
-            val match =
-                pattern.find(
-                    html
-                )
-
-            if (match != null) {
-
-                baseUrl =
-                    match.groupValues[1]
-                        .replace(
-                            "\\/",
-                            "/"
-                        )
-                        .replace(
-                            "\\u002F",
-                            "/"
-                        )
-
-                break
-            }
-        }
-
-        if (baseUrl.isNullOrBlank()) {
-
-            throw IllegalStateException(
-                "В публичной странице Mail Облака не найден weblink_get"
-            )
-        }
-
-        val parts =
-            PUBLIC_CODE.split(
-                "/",
-                limit = 2
-            )
-
-        if (parts.size != 2) {
-
-            throw IllegalStateException(
-                "Неверный код публичной ссылки"
-            )
-        }
-
-        var result =
-            baseUrl!!.trimEnd('/')
-
-        /*
-         * Если URL ещё не содержит публичный код,
-         * добавляем его.
-         */
-        if (
-            !result.endsWith(
-                "/${parts[0]}/${parts[1]}"
-            )
-        ) {
-
-            result +=
-                "/${parts[0]}/${parts[1]}"
-        }
-
-        return result
     }
 
+    /**
+     * Скачивает байты по URL.
+     */
     private fun httpGetBytes(
         urlText: String
     ): ByteArray {
@@ -555,7 +472,7 @@ object ScheduleRepository {
 
                 setRequestProperty(
                     "User-Agent",
-                    "Mozilla/5.0 ScheduleApp/1.0"
+                    USER_AGENT
                 )
 
                 setRequestProperty(
@@ -569,102 +486,36 @@ object ScheduleRepository {
                 )
             }
 
-        val responseCode =
-            connection.responseCode
+        try {
 
-        if (responseCode !in 200..399) {
+            val responseCode =
+                connection.responseCode
 
-            throw IllegalStateException(
-                "Загрузка Mail Облака: HTTP $responseCode"
-            )
-        }
-
-        return connection.inputStream.use {
-            it.readBytes()
-        }
-    }
-
-    private fun extractExcelToTemp(
-        context: Context,
-        zipBytes: ByteArray
-    ): List<File> {
-
-        val temp =
-            File(
-                context.filesDir,
-                TEMP_DIR
-            ).apply {
-                deleteRecursively()
-                mkdirs()
-            }
-
-        return try {
-
-            val files =
-                unzipExcel(
-                    zipBytes,
-                    temp
-                )
-
-            if (files.isEmpty()) {
-
-                temp.deleteRecursively()
+            if (responseCode !in 200..399) {
 
                 throw IllegalStateException(
-                    "В ZIP Mail Облака нет Excel-файлов"
+                    "Загрузка Mail Облака: HTTP $responseCode"
                 )
             }
 
-            files
-
-        } catch (e: Exception) {
-
-            temp.deleteRecursively()
-
-            throw e
-        }
-    }
-
-    private fun extractExcelOrZip(
-        folder: File,
-        bytes: ByteArray
-    ): List<File> {
-
-        /*
-         * XLSX сам является ZIP-контейнером.
-         * Поэтому сначала пробуем распаковать bytes
-         * как ZIP с Excel-файлами.
-         */
-        return try {
-
-            unzipExcel(
-                bytes,
-                folder
-            )
-
-        } catch (_: Exception) {
-
-            if (looksLikeXlsx(bytes)) {
-
-                val file =
-                    File(
-                        folder,
-                        "schedule.xlsx"
-                    )
-
-                file.writeBytes(
-                    bytes
-                )
-
-                listOf(file)
-
-            } else {
-
-                emptyList()
+            return connection.inputStream.use {
+                it.readBytes()
             }
+
+        } finally {
+
+            connection.disconnect()
         }
     }
 
+    /**
+     * Распаковывает ZIP и сохраняет только:
+     *
+     * .xlsx
+     * .xls
+     *
+     * PPTX полностью игнорируется.
+     */
     private fun unzipExcel(
         zipBytes: ByteArray,
         folder: File
@@ -672,6 +523,8 @@ object ScheduleRepository {
 
         val result =
             mutableListOf<File>()
+
+        folder.mkdirs()
 
         ZipInputStream(
             zipBytes.inputStream()
@@ -683,43 +536,72 @@ object ScheduleRepository {
                     zip.nextEntry
                         ?: break
 
-                if (!entry.isDirectory) {
+                try {
 
-                    val lower =
-                        entry.name.lowercase()
+                    if (!entry.isDirectory) {
 
-                    if (
-                        lower.endsWith(".xlsx") ||
-                        lower.endsWith(".xls")
-                    ) {
+                        val entryName =
+                            entry.name
 
-                        val original =
-                            entry.name.substringAfterLast(
-                                '/'
+                        val lower =
+                            entryName.lowercase()
+
+                        if (
+                            lower.endsWith(
+                                ".xlsx"
+                            ) ||
+                            lower.endsWith(
+                                ".xls"
                             )
+                        ) {
 
-                        val safeName =
-                            sanitizeFileName(
-                                original
-                            )
+                            val originalName =
+                                entryName
+                                    .substringAfterLast(
+                                        '/'
+                                    )
 
-                        val target =
-                            uniqueFile(
-                                folder,
-                                safeName
-                            )
+                            if (
+                                originalName.isBlank()
+                            ) {
+                                continue
+                            }
 
-                        FileOutputStream(
-                            target
-                        ).use {
-                            zip.copyTo(it)
+                            val safeName =
+                                sanitizeFileName(
+                                    originalName
+                                )
+
+                            val target =
+                                uniqueFile(
+                                    folder,
+                                    safeName
+                                )
+
+                            FileOutputStream(
+                                target
+                            ).use { output ->
+
+                                zip.copyTo(
+                                    output
+                                )
+                            }
+
+                            if (
+                                target.exists() &&
+                                target.length() > 0
+                            ) {
+                                result += target
+                            } else {
+                                target.delete()
+                            }
                         }
-
-                        result += target
                     }
-                }
 
-                zip.closeEntry()
+                } finally {
+
+                    zip.closeEntry()
+                }
             }
         }
 
@@ -727,10 +609,12 @@ object ScheduleRepository {
     }
 
     /**
-     * Безопасно заменяет кэш.
+     * Безопасно заменяет старый кэш новым.
      *
-     * Старые файлы удаляются только после того,
-     * как новые Excel успешно скопированы.
+     * Важный момент:
+     *
+     * если новая загрузка сломалась,
+     * старый кэш восстанавливается.
      */
     private fun replaceCache(
         context: Context,
@@ -738,7 +622,6 @@ object ScheduleRepository {
     ): List<File> {
 
         if (files.isEmpty()) {
-
             throw IllegalStateException(
                 "Нет Excel-файлов для сохранения"
             )
@@ -752,14 +635,25 @@ object ScheduleRepository {
         val old =
             File(
                 context.filesDir,
-                "${CACHE_DIR}_old"
+                OLD_CACHE_DIR
             )
 
+        /*
+         * На всякий случай удаляем
+         * старую временную копию.
+         */
         old.deleteRecursively()
 
+        /*
+         * Переименовываем текущий кэш.
+         *
+         * Если кэша ещё нет — это нормально.
+         */
         if (target.exists()) {
 
-            if (!target.renameTo(old)) {
+            if (
+                !target.renameTo(old)
+            ) {
 
                 throw IllegalStateException(
                     "Не удалось подготовить старый кэш"
@@ -772,6 +666,17 @@ object ScheduleRepository {
             target.mkdirs()
 
             files.forEach { source ->
+
+                if (
+                    !source.exists() ||
+                    !source.isFile ||
+                    source.length() <= 0
+                ) {
+
+                    throw IllegalStateException(
+                        "Некорректный Excel-файл: ${source.name}"
+                    )
+                }
 
                 val destination =
                     uniqueFile(
@@ -793,10 +698,31 @@ object ScheduleRepository {
             if (result.isEmpty()) {
 
                 throw IllegalStateException(
-                    "Не удалось сохранить Excel"
+                    "Не удалось сохранить Excel-файлы"
                 )
             }
 
+            /*
+             * Проверяем, что все новые файлы
+             * действительно находятся в кэше.
+             */
+            result.forEach { file ->
+
+                if (
+                    !file.exists() ||
+                    file.length() <= 0
+                ) {
+
+                    throw IllegalStateException(
+                        "Ошибка проверки кэша: ${file.name}"
+                    )
+                }
+            }
+
+            /*
+             * Новый кэш успешно создан.
+             * Старый теперь больше не нужен.
+             */
             old.deleteRecursively()
 
             File(
@@ -808,50 +734,121 @@ object ScheduleRepository {
 
         } catch (e: Exception) {
 
+            /*
+             * Удаляем частично созданный новый кэш.
+             */
             target.deleteRecursively()
 
+            /*
+             * Возвращаем старый кэш.
+             */
             if (old.exists()) {
-                old.renameTo(target)
+
+                if (
+                    !old.renameTo(target)
+                ) {
+
+                    throw IllegalStateException(
+                        "Ошибка восстановления старого кэша",
+                        e
+                    )
+                }
             }
 
             throw e
         }
     }
 
+    /**
+     * Проверяет расширение Excel.
+     */
+    private fun isExcelFile(
+        name: String
+    ): Boolean {
+
+        val lower =
+            name
+                .trim()
+                .lowercase()
+
+        return lower.endsWith(
+            ".xlsx"
+        ) ||
+                lower.endsWith(
+                    ".xls"
+                )
+    }
+
+    /**
+     * Создаёт уникальное имя файла.
+     *
+     * Например:
+     *
+     * schedule.xlsx
+     * schedule (2).xlsx
+     * schedule (3).xlsx
+     */
     private fun uniqueFile(
         folder: File,
         requestedName: String
     ): File {
 
-        val base =
-            requestedName.substringBeforeLast(
-                '.',
+        val safeRequestedName =
+            if (
+                requestedName.isBlank()
+            ) {
+                "schedule.xlsx"
+            } else {
                 requestedName
-            )
+            }
+
+        val dot =
+            safeRequestedName
+                .lastIndexOf('.')
+
+        val base =
+            if (
+                dot > 0
+            ) {
+                safeRequestedName
+                    .substring(
+                        0,
+                        dot
+                    )
+            } else {
+                safeRequestedName
+            }
 
         val extension =
-            requestedName.substringAfterLast(
-                '.',
+            if (
+                dot > 0 &&
+                dot < safeRequestedName.length - 1
+            ) {
+                safeRequestedName
+                    .substring(
+                        dot + 1
+                    )
+            } else {
                 ""
-            )
+            }
 
         var file =
             File(
                 folder,
-                requestedName
+                safeRequestedName
             )
 
-        var counter = 2
+        var counter =
+            2
 
         while (file.exists()) {
 
             val newName =
-                if (extension.isBlank()) {
-
+                if (
+                    extension.isBlank()
+                ) {
                     "$base ($counter)"
-
                 } else {
-
                     "$base ($counter).$extension"
                 }
 
@@ -867,6 +864,9 @@ object ScheduleRepository {
         return file
     }
 
+    /**
+     * Очищает имя файла от запрещённых символов.
+     */
     private fun sanitizeFileName(
         name: String
     ): String {
@@ -875,18 +875,26 @@ object ScheduleRepository {
             name
                 .substringAfterLast('/')
                 .replace(
-                    Regex("[\\\\/:*?\"<>|]"),
+                    Regex(
+                        "[\\\\/:*?\"<>|]"
+                    ),
                     "_"
                 )
                 .trim()
 
-        return if (cleaned.isBlank()) {
+        return if (
+            cleaned.isBlank()
+        ) {
             "schedule.xlsx"
         } else {
             cleaned
         }
     }
 
+    /**
+     * Получает оригинальное имя файла
+     * из Android Storage Access Framework.
+     */
     private fun queryDisplayName(
         context: Context,
         uri: Uri
@@ -905,7 +913,9 @@ object ScheduleRepository {
             null
         )?.use { cursor ->
 
-            if (!cursor.moveToFirst()) {
+            if (
+                !cursor.moveToFirst()
+            ) {
                 return@use null
             }
 
@@ -914,37 +924,37 @@ object ScheduleRepository {
                     android.provider.OpenableColumns.DISPLAY_NAME
                 )
 
-            if (index >= 0) {
-                cursor.getString(index)
+            if (
+                index >= 0
+            ) {
+                cursor.getString(
+                    index
+                )
             } else {
                 null
             }
         }
     }
 
-    private fun looksLikeXlsx(
-        bytes: ByteArray
-    ): Boolean {
-
-        /*
-         * XLSX — ZIP-контейнер.
-         * Сигнатура ZIP начинается с PK.
-         */
-        return bytes.size >= 4 &&
-                bytes[0] == 0x50.toByte() &&
-                bytes[1] == 0x4B.toByte()
-    }
-
+    /**
+     * Читает текстовый ответ HTTP.
+     */
     private fun readConnectionText(
         connection: HttpURLConnection
     ): String {
 
         val stream =
-            if (connection.responseCode >= 400) {
+            if (
+                connection.responseCode >= 400
+            ) {
                 connection.errorStream
             } else {
                 connection.inputStream
             }
+
+        if (stream == null) {
+            return ""
+        }
 
         return stream
             .bufferedReader(
