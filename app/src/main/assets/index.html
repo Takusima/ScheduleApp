@@ -939,12 +939,11 @@ function buildData(){
                 /*
                  * Нам нужен именно Лекции.
                  */
+                const normalizedSheetName = clean(sheetName).toLowerCase().replace(/ё/g,"е").replace(/ /g,"");
 
                 if(
-                    sheetName
-                    .trim()
-                    .toLowerCase()
-                    !== "лекции"
+                    normalizedSheetName !== "лекции" &&
+                    !normalizedSheetName.includes("лекци")
                 ){
                     continue;
                 }
