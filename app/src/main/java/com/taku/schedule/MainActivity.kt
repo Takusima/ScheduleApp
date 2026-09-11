@@ -1,13 +1,10 @@
 package com.taku.schedule
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -16,7 +13,6 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import org.json.JSONArray
@@ -77,15 +73,37 @@ class MainActivity : AppCompatActivity() {
             settings.displayZoomControls = false
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClientCompat() {
-                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                override fun shouldInterceptRequest(
+                    view: WebView,
+                    request: WebResourceRequest
+                ): WebResourceResponse? {
                     return assetLoader.shouldInterceptRequest(request.url)
                 }
 
-                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest): Boolean = false
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    request: WebResourceRequest
+                ): Boolean {
+                    val uri = request.url
+                    val isTelegram =
+                        uri.scheme.equals("tg", ignoreCase = true) ||
+                            (uri.scheme.equals("https", ignoreCase = true) &&
+                                uri.host.equals("t.me", ignoreCase = true))
+
+                    if (isTelegram) {
+                        try {
+                            startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        } catch (_: Exception) {
+                        }
+                        return true
+                    }
+                    return false
+                }
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
-                    view?.evaluateJavascript("""
+                    view?.evaluateJavascript(
+                        """
                         (function() {
                             function addScript(id, src) {
                                 if (!document.getElementById(id)) {
@@ -99,7 +117,9 @@ class MainActivity : AppCompatActivity() {
                             addScript('scheduleRemindersScript', './reminders.js');
                             addScript('schedulePerformanceScript', './performance.js');
                         })();
-                    """.trimIndent(), null)
+                        """.trimIndent(),
+                        null
+                    )
                 }
             }
             addJavascriptInterface(Bridge(), "Android")
@@ -123,18 +143,28 @@ class MainActivity : AppCompatActivity() {
             thread {
                 try {
                     if (!isOnline()) {
-                        val cached = ScheduleFileSelector.select(ScheduleRepository.readCachedFiles(this@MainActivity))
-                        if (cached.isNotEmpty()) sendFiles(cached, "Нет интернета • используется расписание на текущую дату")
-                        else sendError("Нет интернета и ещё нет сохранённого Excel-файла")
+                        val cached = ScheduleFileSelector.select(
+                            ScheduleRepository.readCachedFiles(this@MainActivity)
+                        )
+                        if (cached.isNotEmpty()) {
+                            sendFiles(cached, "Нет интернета • используется расписание на текущую дату")
+                        } else {
+                            sendError("Нет интернета и ещё нет сохранённого Excel-файла")
+                        }
                         return@thread
                     }
                     val files = MailCloudDownloader.download(this@MainActivity)
                     val selected = ScheduleFileSelector.select(files)
                     sendFiles(selected, "Расписание загружено • выбрана неделя по текущей дате")
                 } catch (e: Exception) {
-                    val cached = ScheduleFileSelector.select(ScheduleRepository.readCachedFiles(this@MainActivity))
-                    if (cached.isNotEmpty()) sendFiles(cached, "Не удалось обновить • используется сохранённая неделя")
-                    else sendError(e.message ?: "Не удалось загрузить расписание")
+                    val cached = ScheduleFileSelector.select(
+                        ScheduleRepository.readCachedFiles(this@MainActivity)
+                    )
+                    if (cached.isNotEmpty()) {
+                        sendFiles(cached, "Не удалось обновить • используется сохранённая неделя")
+                    } else {
+                        sendError(e.message ?: "Не удалось загрузить расписание")
+                    }
                 }
             }
         }
@@ -143,9 +173,14 @@ class MainActivity : AppCompatActivity() {
         fun loadCached() {
             thread {
                 try {
-                    val files = ScheduleFileSelector.select(ScheduleRepository.readCachedFiles(this@MainActivity))
-                    if (files.isEmpty()) sendError("Сохранённого расписания пока нет")
-                    else sendFiles(files, "Сохранённое расписание • выбрана неделя по дате")
+                    val files = ScheduleFileSelector.select(
+                        ScheduleRepository.readCachedFiles(this@MainActivity)
+                    )
+                    if (files.isEmpty()) {
+                        sendError("Сохранённого расписания пока нет")
+                    } else {
+                        sendFiles(files, "Сохранённое расписание • выбрана неделя по дате")
+                    }
                 } catch (e: Exception) {
                     sendError(e.message ?: "Не удалось открыть сохранённое расписание")
                 }
@@ -155,26 +190,66 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun pickExcel() {
             runOnUiThread {
-                openExcel.launch(arrayOf(
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    "application/vnd.ms-excel"
-                ))
+                openExcel.launch(
+                    arrayOf(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "application/vnd.ms-excel"
+                    )
+                )
             }
         }
 
         @JavascriptInterface
         fun openSource() {
             runOnUiThread {
-                try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ScheduleRepository.PUBLIC_URL))) } catch (_: Exception) { }
+                try {
+                    startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse(ScheduleRepository.PUBLIC_URL)
+                        )
+                    )
+                } catch (_: Exception) {
+                }
             }
         }
 
         @JavascriptInterface
-        fun getCachedCount(): Int = ScheduleRepository.readCachedFiles(this@MainActivity).size
+        fun openTelegram() {
+            runOnUiThread {
+                val telegramUri = Uri.parse("tg://resolve?domain=takusima")
+                val webUri = Uri.parse("https://t.me/takusima")
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, telegramUri))
+                } catch (_: Exception) {
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, webUri))
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+        }
 
         @JavascriptInterface
-        fun setLessonReminders(enabled: Boolean, minutes: Int, group: String, sound: String, lessonsJson: String) {
-            LessonReminderScheduler.saveAndSchedule(this@MainActivity, enabled, minutes, group, sound, lessonsJson)
+        fun getCachedCount(): Int =
+            ScheduleRepository.readCachedFiles(this@MainActivity).size
+
+        @JavascriptInterface
+        fun setLessonReminders(
+            enabled: Boolean,
+            minutes: Int,
+            group: String,
+            sound: String,
+            lessonsJson: String
+        ) {
+            LessonReminderScheduler.saveAndSchedule(
+                this@MainActivity,
+                enabled,
+                minutes,
+                group,
+                sound,
+                lessonsJson
+            )
         }
     }
 
@@ -205,10 +280,12 @@ class MainActivity : AppCompatActivity() {
             if (!file.exists() || !file.isFile || file.length() <= 0L) return@forEach
             val token = UUID.randomUUID().toString()
             servedScheduleFiles[token] = file
-            result.put(JSONObject().apply {
-                put("name", file.name)
-                put("url", "$localScheduleBaseUrl/$token")
-            })
+            result.put(
+                JSONObject().apply {
+                    put("name", file.name)
+                    put("url", "$localScheduleBaseUrl/$token")
+                }
+            )
         }
 
         if (result.length() == 0) {
@@ -244,6 +321,7 @@ class MainActivity : AppCompatActivity() {
                 }
             })();
         """.trimIndent()
+
         runOnUiThread {
             if (::web.isInitialized) web.evaluateJavascript(js, null)
         }
