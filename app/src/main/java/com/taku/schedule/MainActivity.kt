@@ -116,6 +116,7 @@ class MainActivity : AppCompatActivity() {
                             addScript('scheduleCustomizationScript', './customization.js');
                             addScript('scheduleRemindersScript', './reminders.js');
                             addScript('schedulePerformanceScript', './performance.js');
+                            addScript('scheduleExtrasScript', './schedule_extras.js');
                             document.querySelectorAll('p,h3,button').forEach(function(el){
                                 if (el.textContent === 'Mail Облако • автоматическая синхронизация') el.textContent = 'КМК • автоматическая синхронизация';
                                 else if (el.textContent === 'Mail Облако') el.textContent = 'КМК';
@@ -231,6 +232,16 @@ class MainActivity : AppCompatActivity() {
                         startActivity(Intent(Intent.ACTION_VIEW, webUri))
                     } catch (_: Exception) {
                     }
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun updateWidgetData(json: String, accent: String) {
+            thread {
+                try {
+                    ScheduleWidgetProvider.saveAndRefresh(this@MainActivity, json, accent)
+                } catch (_: Exception) {
                 }
             }
         }
