@@ -1,10 +1,13 @@
 package com.taku.schedule
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -12,6 +15,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -21,19 +25,24 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
 
-    private val openExcel =
-        registerForActivityResult(
-            ActivityResultContracts.OpenMultipleDocuments()
-        ) { uris ->
-            if (uris.isNullOrEmpty()) return@registerForActivityResult
-            importSelectedFiles(uris)
-        }
+    private val openExcel = registerForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNullOrEmpty()) return@registerForActivityResult
+        importSelectedFiles(uris)
+    }
+
+    private val notificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         ScheduleSync.scheduleNextSunday(this)
+        ScheduleSync.scheduleNextNewYear(this)
+        requestNotificationPermissionIfNeeded()
 
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
@@ -45,17 +54,10 @@ class MainActivity : AppCompatActivity() {
             webChromeClient = WebChromeClient()
 
             webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(
-                    view: WebView?,
-                    url: String?
-                ): Boolean = false
+                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean = false
 
-                override fun onPageFinished(
-                    view: WebView?,
-                    url: String?
-                ) {
+                override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
-
                     view?.evaluateJavascript(
                         """
                         (function() {
@@ -78,6 +80,18 @@ class MainActivity : AppCompatActivity() {
         setContentView(web)
     }
 
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < 33) return
+        if (
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     override fun onDestroy() {
         if (::web.isInitialized) {
             web.removeJavascriptInterface("Android")
@@ -87,7 +101,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     inner class Bridge {
-
         @JavascriptInterface
         fun sync() {
             thread {
@@ -96,12 +109,8 @@ class MainActivity : AppCompatActivity() {
                         val cached = ScheduleFileSelector.select(
                             ScheduleRepository.readCachedFiles(this@MainActivity)
                         )
-
                         if (cached.isNotEmpty()) {
-                            sendFiles(
-                                cached,
-                                "Нет интернета • используется расписание на текущую дату"
-                            )
+                            sendFiles(cached, "Нет интернета • используется расписание на текущую дату")
                         } else {
                             sendError("Нет интернета и ещё нет сохранённого Excel-файла")
                         }
@@ -110,21 +119,13 @@ class MainActivity : AppCompatActivity() {
 
                     val files = MailCloudDownloader.download(this@MainActivity)
                     val selected = ScheduleFileSelector.select(files)
-
-                    sendFiles(
-                        selected,
-                        "Расписание обновлено • выбрана неделя по текущей дате"
-                    )
+                    sendFiles(selected, "Расписание обновлено • выбрана неделя по текущей дате")
                 } catch (e: Exception) {
                     val cached = ScheduleFileSelector.select(
                         ScheduleRepository.readCachedFiles(this@MainActivity)
                     )
-
                     if (cached.isNotEmpty()) {
-                        sendFiles(
-                            cached,
-                            "Не удалось обновить • используется сохранённая неделя"
-                        )
+                        sendFiles(cached, "Не удалось обновить • используется сохранённая неделя")
                     } else {
                         sendError(e.message ?: "Не удалось загрузить расписание")
                     }
@@ -139,7 +140,6 @@ class MainActivity : AppCompatActivity() {
                     val files = ScheduleFileSelector.select(
                         ScheduleRepository.readCachedFiles(this@MainActivity)
                     )
-
                     if (files.isEmpty()) {
                         sendError("Сохранённого расписания пока нет")
                     } else {
@@ -167,37 +167,22 @@ class MainActivity : AppCompatActivity() {
         fun openSource() {
             runOnUiThread {
                 try {
-                    startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse(ScheduleRepository.PUBLIC_URL)
-                        )
-                    )
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ScheduleRepository.PUBLIC_URL)))
                 } catch (_: Exception) {
                 }
             }
         }
 
         @JavascriptInterface
-        fun getCachedCount(): Int {
-            return ScheduleRepository
-                .readCachedFiles(this@MainActivity)
-                .size
-        }
+        fun getCachedCount(): Int =
+            ScheduleRepository.readCachedFiles(this@MainActivity).size
     }
 
     private fun importSelectedFiles(uris: List<Uri>) {
         thread {
             try {
-                val files = ScheduleRepository.importExcelFiles(
-                    this@MainActivity,
-                    uris
-                )
-
-                sendFiles(
-                    files,
-                    "Excel загружен • сохранено файлов: ${files.size}"
-                )
+                val files = ScheduleRepository.importExcelFiles(this@MainActivity, uris)
+                sendFiles(files, "Excel загружен • сохранено файлов: ${files.size}")
             } catch (e: Exception) {
                 sendError(e.message ?: "Не удалось загрузить Excel")
             }
@@ -209,30 +194,19 @@ class MainActivity : AppCompatActivity() {
             sendError("Excel-файлы не найдены")
             return
         }
-
         val result = JSONArray()
-
         files.forEach { file ->
             val item = JSONObject()
             item.put("name", file.name)
             item.put(
                 "data",
-                android.util.Base64.encodeToString(
-                    file.readBytes(),
-                    android.util.Base64.NO_WRAP
-                )
+                android.util.Base64.encodeToString(file.readBytes(), android.util.Base64.NO_WRAP)
             )
             result.put(item)
         }
-
-        val filesJson = result.toString()
-        val js =
-            "window.onNativeFiles(" +
-                JSONObject.quote(filesJson) +
-                "," +
-                JSONObject.quote(status) +
-                ");"
-
+        val js = "window.onNativeFiles(" +
+            JSONObject.quote(result.toString()) + "," +
+            JSONObject.quote(status) + ");"
         runOnUiThread {
             if (!::web.isInitialized) return@runOnUiThread
             web.evaluateJavascript(js, null)
@@ -240,11 +214,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendError(message: String) {
-        val js =
-            "window.onNativeError(" +
-                JSONObject.quote(message) +
-                ");"
-
+        val js = "window.onNativeError(" + JSONObject.quote(message) + ");"
         runOnUiThread {
             if (!::web.isInitialized) return@runOnUiThread
             web.evaluateJavascript(js, null)
@@ -252,12 +222,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isOnline(): Boolean {
-        val manager = getSystemService(ConnectivityManager::class.java)
-            ?: return false
+        val manager = getSystemService(ConnectivityManager::class.java) ?: return false
         val network = manager.activeNetwork ?: return false
-        val capabilities = manager.getNetworkCapabilities(network)
-            ?: return false
-
+        val capabilities = manager.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
             capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
