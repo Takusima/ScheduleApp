@@ -13,6 +13,7 @@ class BootReceiver : BroadcastReceiver() {
         ) {
             ScheduleSync.scheduleNextSunday(context)
             ScheduleSync.scheduleNextNewYear(context)
+            LessonReminderScheduler.restore(context)
         }
     }
 }
