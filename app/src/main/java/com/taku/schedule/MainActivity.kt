@@ -28,12 +28,17 @@ import androidx.webkit.WebViewClientCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
     private lateinit var assetLoader: WebViewAssetLoader
+
+    private val servedScheduleFiles = ConcurrentHashMap<String, File>()
+    private val localScheduleBaseUrl = "https://appassets.androidplatform.net/schedule"
 
     private val openExcel = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNullOrEmpty()) return@registerForActivityResult
@@ -52,6 +57,23 @@ class MainActivity : AppCompatActivity() {
 
         assetLoader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .addPathHandler("/schedule/", WebViewAssetLoader.PathHandler { path ->
+                val token = path.trim('/').substringBefore('/')
+                val file = servedScheduleFiles[token] ?: return@PathHandler null
+                if (!file.exists() || !file.isFile || file.length() <= 0L) {
+                    servedScheduleFiles.remove(token)
+                    return@PathHandler null
+                }
+                try {
+                    WebResourceResponse(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        null,
+                        file.inputStream()
+                    )
+                } catch (_: Exception) {
+                    null
+                }
+            })
             .build()
 
         web = WebView(this).apply {
@@ -110,6 +132,7 @@ class MainActivity : AppCompatActivity() {
             web.removeJavascriptInterface("Android")
             web.destroy()
         }
+        servedScheduleFiles.clear()
         super.onDestroy()
     }
 
@@ -248,25 +271,39 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        while (servedScheduleFiles.size > 24) {
+            val first = servedScheduleFiles.keys.firstOrNull() ?: break
+            servedScheduleFiles.remove(first)
+        }
+
         val result = JSONArray()
         files.forEach { file ->
+            if (!file.exists() || !file.isFile || file.length() <= 0L) return@forEach
+            val token = UUID.randomUUID().toString()
+            servedScheduleFiles[token] = file
             val item = JSONObject()
             item.put("name", file.name)
-            item.put(
-                "data",
-                android.util.Base64.encodeToString(
-                    file.readBytes(),
-                    android.util.Base64.NO_WRAP
-                )
-            )
+            item.put("url", "$localScheduleBaseUrl/$token")
             result.put(item)
         }
 
-        val js = "window.onNativeFiles(" +
-            JSONObject.quote(result.toString()) +
-            "," +
-            JSONObject.quote(status) +
-            ");"
+        if (result.length() == 0) {
+            sendError("Excel-файлы не найдены")
+            return
+        }
+
+        val json = result.toString()
+        val js = """
+            (function() {
+                var data = ${JSONObject.quote(json)};
+                var status = ${JSONObject.quote(status)};
+                if (window.__schedulePerformanceReady && typeof window.onNativeFiles === 'function') {
+                    window.onNativeFiles(data, status);
+                } else {
+                    window.__schedulePendingNativeFiles = { json: data, status: status };
+                }
+            })();
+        """.trimIndent()
 
         runOnUiThread {
             if (::web.isInitialized) web.evaluateJavascript(js, null)
@@ -274,7 +311,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendError(message: String) {
-        val js = "window.onNativeError(" + JSONObject.quote(message) + ");"
+        val js = """
+            (function() {
+                if (window.__schedulePerformanceReady && typeof window.onNativeError === 'function') {
+                    window.onNativeError(${JSONObject.quote(message)});
+                } else {
+                    window.__schedulePendingNativeError = ${JSONObject.quote(message)};
+                }
+            })();
+        """.trimIndent()
         runOnUiThread {
             if (::web.isInitialized) web.evaluateJavascript(js, null)
         }
