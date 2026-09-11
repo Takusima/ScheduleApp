@@ -93,10 +93,26 @@ function parseLectureSheet(sheet, fileName) {
   }
   return lessons;
 }
-self.onmessage = function(event) {
+
+async function loadWorkbook(file) {
+  if (file.url) {
+    const response = await fetch(file.url, { cache: 'no-store' });
+    if (!response.ok) throw new Error('Не удалось получить Excel-файл: HTTP ' + response.status);
+    const buffer = await response.arrayBuffer();
+    return XLSX.read(buffer, { type: 'array', cellDates: true });
+  }
+
+  if (file.data) {
+    return XLSX.read(file.data, { type: 'base64', cellDates: true });
+  }
+
+  throw new Error('Excel-файл не содержит данных');
+}
+
+self.onmessage = async function(event) {
   const file = event.data || {};
   try {
-    const workbook = XLSX.read(file.data, { type: 'base64', cellDates: true });
+    const workbook = await loadWorkbook(file);
     const lessons = [];
     workbook.SheetNames.forEach(sheetName => {
       const name = normalize(sheetName);
