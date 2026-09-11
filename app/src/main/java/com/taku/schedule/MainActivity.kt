@@ -2,12 +2,8 @@ package com.taku.schedule
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.media.RingtoneManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -20,8 +16,6 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
@@ -36,7 +30,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
     private lateinit var assetLoader: WebViewAssetLoader
-
     private val servedScheduleFiles = ConcurrentHashMap<String, File>()
     private val localScheduleBaseUrl = "https://appassets.androidplatform.net/schedule"
 
@@ -45,15 +38,12 @@ class MainActivity : AppCompatActivity() {
         importSelectedFiles(uris)
     }
 
-    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
-
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ScheduleSync.scheduleNextSunday(this)
         ScheduleSync.scheduleNextNewYear(this)
         LessonReminderScheduler.restore(this)
-        requestNotificationPermissionIfNeeded()
 
         assetLoader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
@@ -91,9 +81,7 @@ class MainActivity : AppCompatActivity() {
                     return assetLoader.shouldInterceptRequest(request.url)
                 }
 
-                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest): Boolean {
-                    return false
-                }
+                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest): Boolean = false
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
@@ -120,13 +108,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(web)
     }
 
-    private fun requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT < 33) return
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-
     override fun onDestroy() {
         if (::web.isInitialized) {
             web.removeJavascriptInterface("Android")
@@ -147,10 +128,9 @@ class MainActivity : AppCompatActivity() {
                         else sendError("Нет интернета и ещё нет сохранённого Excel-файла")
                         return@thread
                     }
-
                     val files = MailCloudDownloader.download(this@MainActivity)
                     val selected = ScheduleFileSelector.select(files)
-                    sendFiles(selected, "Расписание обновлено • выбрана неделя по текущей дате")
+                    sendFiles(selected, "Расписание загружено • выбрана неделя по текущей дате")
                 } catch (e: Exception) {
                     val cached = ScheduleFileSelector.select(ScheduleRepository.readCachedFiles(this@MainActivity))
                     if (cached.isNotEmpty()) sendFiles(cached, "Не удалось обновить • используется сохранённая неделя")
@@ -175,22 +155,17 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun pickExcel() {
             runOnUiThread {
-                openExcel.launch(
-                    arrayOf(
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        "application/vnd.ms-excel"
-                    )
-                )
+                openExcel.launch(arrayOf(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "application/vnd.ms-excel"
+                ))
             }
         }
 
         @JavascriptInterface
         fun openSource() {
             runOnUiThread {
-                try {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ScheduleRepository.PUBLIC_URL)))
-                } catch (_: Exception) {
-                }
+                try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ScheduleRepository.PUBLIC_URL))) } catch (_: Exception) { }
             }
         }
 
@@ -199,58 +174,7 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun setLessonReminders(enabled: Boolean, minutes: Int, group: String, sound: String, lessonsJson: String) {
-            LessonReminderScheduler.saveAndSchedule(
-                this@MainActivity,
-                enabled,
-                minutes,
-                group,
-                sound,
-                lessonsJson
-            )
-        }
-
-        @JavascriptInterface
-        fun notifyScheduleUpdated(message: String) {
-            if (
-                Build.VERSION.SDK_INT >= 33 &&
-                ContextCompat.checkSelfPermission(
-                    this@MainActivity,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) return
-
-            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            val channelId = "schedule_updates"
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    channelId,
-                    "Обновления расписания",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                ).apply {
-                    description = "Уведомления об обновлении расписания"
-                    setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), null)
-                }
-                manager.createNotificationChannel(channel)
-            }
-
-            val pending = PendingIntent.getActivity(
-                this@MainActivity,
-                9012,
-                Intent(this@MainActivity, MainActivity::class.java),
-                PendingIntent.FLAG_UPDATE_CURRENT or
-                    if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0
-            )
-
-            val notification = NotificationCompat.Builder(this@MainActivity, channelId)
-                .setSmallIcon(android.R.drawable.ic_popup_sync)
-                .setContentTitle("📚 Расписание обновлено")
-                .setContentText(message)
-                .setContentIntent(pending)
-                .setAutoCancel(true)
-                .build()
-
-            NotificationManagerCompat.from(this@MainActivity).notify(9012, notification)
+            LessonReminderScheduler.saveAndSchedule(this@MainActivity, enabled, minutes, group, sound, lessonsJson)
         }
     }
 
@@ -281,10 +205,10 @@ class MainActivity : AppCompatActivity() {
             if (!file.exists() || !file.isFile || file.length() <= 0L) return@forEach
             val token = UUID.randomUUID().toString()
             servedScheduleFiles[token] = file
-            val item = JSONObject()
-            item.put("name", file.name)
-            item.put("url", "$localScheduleBaseUrl/$token")
-            result.put(item)
+            result.put(JSONObject().apply {
+                put("name", file.name)
+                put("url", "$localScheduleBaseUrl/$token")
+            })
         }
 
         if (result.length() == 0) {
