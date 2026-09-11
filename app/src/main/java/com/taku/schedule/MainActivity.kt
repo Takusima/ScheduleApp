@@ -42,6 +42,7 @@ class MainActivity : AppCompatActivity() {
 
         ScheduleSync.scheduleNextSunday(this)
         ScheduleSync.scheduleNextNewYear(this)
+        LessonReminderScheduler.restore(this)
         requestNotificationPermissionIfNeeded()
 
         web = WebView(this).apply {
@@ -61,11 +62,18 @@ class MainActivity : AppCompatActivity() {
                     view?.evaluateJavascript(
                         """
                         (function() {
-                            if (document.getElementById('scheduleCustomizationScript')) return;
-                            var script = document.createElement('script');
-                            script.id = 'scheduleCustomizationScript';
-                            script.src = './customization.js';
-                            document.head.appendChild(script);
+                            if (!document.getElementById('scheduleCustomizationScript')) {
+                                var script = document.createElement('script');
+                                script.id = 'scheduleCustomizationScript';
+                                script.src = './customization.js';
+                                document.head.appendChild(script);
+                            }
+                            if (!document.getElementById('scheduleRemindersScript')) {
+                                var reminders = document.createElement('script');
+                                reminders.id = 'scheduleRemindersScript';
+                                reminders.src = './reminders.js';
+                                document.head.appendChild(reminders);
+                            }
                         })();
                         """.trimIndent(),
                         null
@@ -176,6 +184,22 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun getCachedCount(): Int =
             ScheduleRepository.readCachedFiles(this@MainActivity).size
+
+        @JavascriptInterface
+        fun setLessonReminders(
+            enabled: Boolean,
+            minutes: Int,
+            group: String,
+            lessonsJson: String
+        ) {
+            LessonReminderScheduler.saveAndSchedule(
+                this@MainActivity,
+                enabled,
+                minutes,
+                group,
+                lessonsJson
+            )
+        }
     }
 
     private fun importSelectedFiles(uris: List<Uri>) {
