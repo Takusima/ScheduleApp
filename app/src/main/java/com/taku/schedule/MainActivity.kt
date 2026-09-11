@@ -25,11 +25,7 @@ class MainActivity : AppCompatActivity() {
         registerForActivityResult(
             ActivityResultContracts.OpenMultipleDocuments()
         ) { uris ->
-
-            if (uris.isNullOrEmpty()) {
-                return@registerForActivityResult
-            }
-
+            if (uris.isNullOrEmpty()) return@registerForActivityResult
             importSelectedFiles(uris)
         }
 
@@ -40,7 +36,6 @@ class MainActivity : AppCompatActivity() {
         ScheduleSync.scheduleNextSunday(this)
 
         web = WebView(this).apply {
-
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.allowFileAccess = true
@@ -50,156 +45,95 @@ class MainActivity : AppCompatActivity() {
             webChromeClient = WebChromeClient()
 
             webViewClient = object : WebViewClient() {
-
                 override fun shouldOverrideUrlLoading(
                     view: WebView?,
                     url: String?
-                ): Boolean {
-                    return false
-                }
+                ): Boolean = false
             }
 
-            addJavascriptInterface(
-                Bridge(),
-                "Android"
-            )
-
-            loadUrl(
-                "file:///android_asset/index.html"
-            )
+            addJavascriptInterface(Bridge(), "Android")
+            loadUrl("file:///android_asset/index.html")
         }
 
         setContentView(web)
     }
 
     override fun onDestroy() {
-
         if (::web.isInitialized) {
             web.removeJavascriptInterface("Android")
             web.destroy()
         }
-
         super.onDestroy()
     }
 
     inner class Bridge {
 
-        /**
-         * Запускается кнопкой «Обновить».
-         */
         @JavascriptInterface
         fun sync() {
-
             thread {
-
                 try {
-
                     if (!isOnline()) {
-
-                        val cached =
-                            ScheduleRepository.readCachedFiles(
-                                this@MainActivity
-                            )
+                        val cached = ScheduleFileSelector.select(
+                            ScheduleRepository.readCachedFiles(this@MainActivity)
+                        )
 
                         if (cached.isNotEmpty()) {
-
                             sendFiles(
                                 cached,
-                                "Нет интернета • используется сохранённое расписание"
+                                "Нет интернета • используется расписание на текущую дату"
                             )
-
                         } else {
-
-                            sendError(
-                                "Нет интернета и ещё нет сохранённого Excel-файла"
-                            )
+                            sendError("Нет интернета и ещё нет сохранённого Excel-файла")
                         }
-
                         return@thread
                     }
 
-                    val files =
-                        ScheduleRepository.downloadFromCloud(
-                            this@MainActivity
-                        )
+                    val files = MailCloudDownloader.download(this@MainActivity)
+                    val selected = ScheduleFileSelector.select(files)
 
                     sendFiles(
-                        files,
-                        "Расписание обновлено из Mail Облака"
+                        selected,
+                        "Расписание обновлено • выбрана неделя по текущей дате"
                     )
-
                 } catch (e: Exception) {
-
-                    val cached =
-                        ScheduleRepository.readCachedFiles(
-                            this@MainActivity
-                        )
+                    val cached = ScheduleFileSelector.select(
+                        ScheduleRepository.readCachedFiles(this@MainActivity)
+                    )
 
                     if (cached.isNotEmpty()) {
-
                         sendFiles(
                             cached,
-                            "Не удалось обновить • используется сохранённая копия"
+                            "Не удалось обновить • используется сохранённая неделя"
                         )
-
                     } else {
-
-                        sendError(
-                            e.message
-                                ?: "Не удалось загрузить расписание"
-                        )
+                        sendError(e.message ?: "Не удалось загрузить расписание")
                     }
                 }
             }
         }
 
-        /**
-         * Загружает сохранённые Excel-файлы.
-         */
         @JavascriptInterface
         fun loadCached() {
-
             thread {
-
                 try {
-
-                    val files =
-                        ScheduleRepository.readCachedFiles(
-                            this@MainActivity
-                        )
+                    val files = ScheduleFileSelector.select(
+                        ScheduleRepository.readCachedFiles(this@MainActivity)
+                    )
 
                     if (files.isEmpty()) {
-
-                        sendError(
-                            "Сохранённого расписания пока нет"
-                        )
-
+                        sendError("Сохранённого расписания пока нет")
                     } else {
-
-                        sendFiles(
-                            files,
-                            "Офлайн-расписание"
-                        )
+                        sendFiles(files, "Сохранённое расписание • выбрана неделя по дате")
                     }
-
                 } catch (e: Exception) {
-
-                    sendError(
-                        e.message
-                            ?: "Не удалось открыть сохранённое расписание"
-                    )
+                    sendError(e.message ?: "Не удалось открыть сохранённое расписание")
                 }
             }
         }
 
-        /**
-         * Открывает системный выбор Excel-файлов.
-         */
         @JavascriptInterface
         fun pickExcel() {
-
             runOnUiThread {
-
                 openExcel.launch(
                     arrayOf(
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -209,101 +143,58 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        /**
-         * Открывает публичную страницу Mail Облака.
-         */
         @JavascriptInterface
         fun openSource() {
-
             runOnUiThread {
-
                 try {
-
                     startActivity(
                         Intent(
                             Intent.ACTION_VIEW,
-                            Uri.parse(
-                                ScheduleRepository.PUBLIC_URL
-                            )
+                            Uri.parse(ScheduleRepository.PUBLIC_URL)
                         )
                     )
-
                 } catch (_: Exception) {
-                    // Браузер не найден.
                 }
             }
         }
 
-        /**
-         * Возвращает количество сохранённых файлов.
-         */
         @JavascriptInterface
         fun getCachedCount(): Int {
-
             return ScheduleRepository
-                .readCachedFiles(
-                    this@MainActivity
-                )
+                .readCachedFiles(this@MainActivity)
                 .size
         }
     }
 
-    private fun importSelectedFiles(
-        uris: List<Uri>
-    ) {
-
+    private fun importSelectedFiles(uris: List<Uri>) {
         thread {
-
             try {
-
-                val files =
-                    ScheduleRepository.importExcelFiles(
-                        this@MainActivity,
-                        uris
-                    )
+                val files = ScheduleRepository.importExcelFiles(
+                    this@MainActivity,
+                    uris
+                )
 
                 sendFiles(
                     files,
                     "Excel загружен • сохранено файлов: ${files.size}"
                 )
-
             } catch (e: Exception) {
-
-                sendError(
-                    e.message
-                        ?: "Не удалось загрузить Excel"
-                )
+                sendError(e.message ?: "Не удалось загрузить Excel")
             }
         }
     }
 
-    private fun sendFiles(
-        files: List<File>,
-        status: String
-    ) {
-
+    private fun sendFiles(files: List<File>, status: String) {
         if (files.isEmpty()) {
-
-            sendError(
-                "Excel-файлы не найдены"
-            )
-
+            sendError("Excel-файлы не найдены")
             return
         }
 
-        val result =
-            JSONArray()
+        val result = JSONArray()
 
         files.forEach { file ->
-
-            val item =
-                JSONObject()
-
-            item.put(
-                "name",
-                file.name
-            )
-
+            val item = JSONObject()
+            item.put("name", file.name)
             item.put(
                 "data",
                 android.util.Base64.encodeToString(
@@ -311,78 +202,43 @@ class MainActivity : AppCompatActivity() {
                     android.util.Base64.NO_WRAP
                 )
             )
-
             result.put(item)
         }
 
-        val filesJson =
-            result.toString()
-
+        val filesJson = result.toString()
         val js =
             "window.onNativeFiles(" +
-                    JSONObject.quote(filesJson) +
-                    "," +
-                    JSONObject.quote(status) +
-                    ");"
+                JSONObject.quote(filesJson) +
+                "," +
+                JSONObject.quote(status) +
+                ");"
 
         runOnUiThread {
-
-            if (!::web.isInitialized) {
-                return@runOnUiThread
-            }
-
-            web.evaluateJavascript(
-                js,
-                null
-            )
+            if (!::web.isInitialized) return@runOnUiThread
+            web.evaluateJavascript(js, null)
         }
     }
 
-    private fun sendError(
-        message: String
-    ) {
-
+    private fun sendError(message: String) {
         val js =
             "window.onNativeError(" +
-                    JSONObject.quote(message) +
-                    ");"
+                JSONObject.quote(message) +
+                ");"
 
         runOnUiThread {
-
-            if (!::web.isInitialized) {
-                return@runOnUiThread
-            }
-
-            web.evaluateJavascript(
-                js,
-                null
-            )
+            if (!::web.isInitialized) return@runOnUiThread
+            web.evaluateJavascript(js, null)
         }
     }
 
     private fun isOnline(): Boolean {
+        val manager = getSystemService(ConnectivityManager::class.java)
+            ?: return false
+        val network = manager.activeNetwork ?: return false
+        val capabilities = manager.getNetworkCapabilities(network)
+            ?: return false
 
-        val manager =
-            getSystemService(
-                ConnectivityManager::class.java
-            )
-                ?: return false
-
-        val network =
-            manager.activeNetwork
-                ?: return false
-
-        val capabilities =
-            manager.getNetworkCapabilities(
-                network
-            )
-                ?: return false
-
-        return capabilities.hasCapability(
-            NetworkCapabilities.NET_CAPABILITY_INTERNET
-        ) &&
-                capabilities.hasCapability(
-                    NetworkCapabilities.NET_CAPABILITY_VALIDATED
-                )
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 }
