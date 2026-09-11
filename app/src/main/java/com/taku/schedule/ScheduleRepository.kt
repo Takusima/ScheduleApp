@@ -7,7 +7,6 @@ import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.zip.GZIPInputStream
@@ -23,30 +22,19 @@ object ScheduleRepository {
     private const val ZIP_API_URL =
         "https://cloud.mail.ru/api/v3/zip/weblink"
 
-    private const val CACHE_DIR =
-        "schedule_cache"
-
-    private const val TEMP_DIR =
-        "schedule_cache_tmp"
-
-    private const val OLD_CACHE_DIR =
-        "schedule_cache_old"
-
-    private const val USER_AGENT =
-        "ScheduleApp/1.0"
-
+    private const val CACHE_DIR = "schedule_cache"
+    private const val TEMP_DIR = "schedule_cache_tmp"
+    private const val OLD_CACHE_DIR = "schedule_cache_old"
+    private const val USER_AGENT = "ScheduleApp/1.0"
     private const val MAX_REDIRECTS = 6
 
-    fun cacheDir(context: Context): File {
-        return File(context.filesDir, CACHE_DIR)
-    }
+    fun cacheDir(context: Context): File =
+        File(context.filesDir, CACHE_DIR)
 
     fun readCachedFiles(context: Context): List<File> {
         return cacheDir(context)
             .listFiles()
-            ?.filter { file ->
-                file.isFile && isExcelFile(file.name)
-            }
+            ?.filter { file -> file.isFile && isExcelFile(file.name) }
             ?.sortedBy { it.name.lowercase() }
             ?: emptyList()
     }
@@ -91,10 +79,7 @@ object ScheduleRepository {
         }
     }
 
-    fun importExcelFiles(
-        context: Context,
-        uris: List<Uri>
-    ): List<File> {
+    fun importExcelFiles(context: Context, uris: List<Uri>): List<File> {
         if (uris.isEmpty()) {
             throw IllegalArgumentException("Excel-файл не выбран")
         }
@@ -115,11 +100,7 @@ object ScheduleRepository {
                     )
                 }
 
-                val target = uniqueFile(
-                    temp,
-                    sanitizeFileName(originalName)
-                )
-
+                val target = uniqueFile(temp, sanitizeFileName(originalName))
                 val input = context.contentResolver.openInputStream(uri)
                     ?: throw IllegalStateException(
                         "Не удалось открыть файл: $originalName"
@@ -138,9 +119,7 @@ object ScheduleRepository {
 
             val files = temp.listFiles()
                 ?.filter { file ->
-                    file.isFile &&
-                        isExcelFile(file.name) &&
-                        file.length() > 0
+                    file.isFile && isExcelFile(file.name) && file.length() > 0
                 }
                 ?.sortedBy { it.name.lowercase() }
                 ?: emptyList()
@@ -157,18 +136,12 @@ object ScheduleRepository {
     }
 
     private fun createZipLink(): String {
-        val connection = openConnection(
-            ZIP_API_URL,
-            method = "POST"
-        )
+        val connection = openConnection(ZIP_API_URL, method = "POST")
 
         try {
             val body = JSONObject()
                 .put("x-email", "anonym")
-                .put(
-                    "weblink_list",
-                    JSONArray().put(PUBLIC_CODE)
-                )
+                .put("weblink_list", JSONArray().put(PUBLIC_CODE))
                 .put("name", "schedule")
                 .toString()
 
@@ -181,15 +154,13 @@ object ScheduleRepository {
 
             if (responseCode !in 200..299) {
                 throw IllegalStateException(
-                    "Mail API: HTTP $responseCode" +
-                        responseInfo(connection)
+                    "Mail API: HTTP $responseCode" + responseInfo(connection)
                 )
             }
 
             if (responseText.isBlank()) {
                 throw IllegalStateException(
-                    "Mail API вернул пустой ответ" +
-                        responseInfo(connection)
+                    "Mail API вернул пустой ответ" + responseInfo(connection)
                 )
             }
 
@@ -205,7 +176,6 @@ object ScheduleRepository {
             }
 
             val key = json.optString("key").trim()
-
             if (key.isBlank()) {
                 throw IllegalStateException(
                     "Mail API не вернул ZIP-ссылку: ${shorten(responseText)}"
@@ -244,13 +214,10 @@ object ScheduleRepository {
 
                 if (responseCode in 300..399) {
                     val location = connection.getHeaderField("Location")
-
-                    if (location.isNullOrBlank()) {
-                        throw IllegalStateException(
+                        ?: throw IllegalStateException(
                             "Mail ZIP: HTTP $responseCode без Location" +
                                 responseInfo(connection)
                         )
-                    }
 
                     redirects++
                     if (redirects > MAX_REDIRECTS) {
@@ -276,10 +243,7 @@ object ScheduleRepository {
                 val contentEncoding = connection.contentEncoding.orEmpty()
                 val finalUrl = connection.url?.toString() ?: currentUrl
 
-                val raw = connection.inputStream.use { input ->
-                    input.readBytes()
-                }
-
+                val raw = connection.inputStream.use { it.readBytes() }
                 if (raw.isEmpty()) {
                     throw IllegalStateException(
                         "Mail ZIP: получен пустой ответ" +
@@ -309,16 +273,12 @@ object ScheduleRepository {
         }
     }
 
-    private fun openConnection(
-        urlText: String,
-        method: String
-    ): HttpURLConnection {
+    private fun openConnection(urlText: String, method: String): HttpURLConnection {
         return (URL(urlText).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 20_000
             readTimeout = 120_000
             instanceFollowRedirects = false
-
             setRequestProperty("User-Agent", USER_AGENT)
             setRequestProperty("Accept", "*/*")
             setRequestProperty("Accept-Encoding", "identity")
@@ -336,18 +296,11 @@ object ScheduleRepository {
         }
     }
 
-    private fun decodeHttpBody(
-        bytes: ByteArray,
-        contentEncoding: String
-    ): ByteArray {
-        if (!contentEncoding.equals("gzip", ignoreCase = true)) {
-            return bytes
-        }
+    private fun decodeHttpBody(bytes: ByteArray, contentEncoding: String): ByteArray {
+        if (!contentEncoding.equals("gzip", ignoreCase = true)) return bytes
 
         return try {
-            GZIPInputStream(ByteArrayInputStream(bytes)).use {
-                it.readBytes()
-            }
+            GZIPInputStream(ByteArrayInputStream(bytes)).use { it.readBytes() }
         } catch (e: Exception) {
             throw IllegalStateException(
                 "Mail ZIP: сервер указал gzip, но распаковать ответ не удалось",
@@ -357,12 +310,8 @@ object ScheduleRepository {
     }
 
     private fun normalizeZipBytes(bytes: ByteArray): ByteArray? {
-        if (isZipSignature(bytes)) {
-            return bytes
-        }
+        if (isZipSignature(bytes)) return bytes
 
-        // Иногда сервер/прокси может добавить мусор перед ZIP.
-        // Ищем сигнатуру PK и пробуем начать архив с неё.
         val limit = minOf(bytes.size - 3, 1024 * 1024)
         for (index in 1..limit) {
             if (bytes[index] == 'P'.code.toByte() &&
@@ -389,49 +338,72 @@ object ScheduleRepository {
                 )
     }
 
-    private fun unzipExcel(
-        zipBytes: ByteArray,
-        folder: File
-    ): List<File> {
+    private fun unzipExcel(zipBytes: ByteArray, folder: File): List<File> {
         val result = mutableListOf<File>()
         folder.mkdirs()
+        var detectedEntries = 0
+        var excelEntries = 0
 
         try {
             ZipInputStream(zipBytes.inputStream()).use { zip ->
+                var index = 0
+
                 while (true) {
                     val entry = zip.nextEntry ?: break
+                    index++
 
                     try {
-                        if (!entry.isDirectory) {
-                            val entryName = entry.name
-                            val lower = entryName.lowercase()
+                        if (entry.isDirectory) continue
 
-                            if (
-                                lower.endsWith(".xlsx") ||
-                                lower.endsWith(".xls")
-                            ) {
-                                val originalName =
-                                    entryName.substringAfterLast('/').substringAfterLast('\\')
+                        detectedEntries++
+                        val entryName = entry.name.orEmpty()
+                        val safeName = sanitizeFileName(entryName)
 
-                                if (originalName.isBlank()) {
-                                    continue
-                                }
-
-                                val target = uniqueFile(
-                                    folder,
-                                    sanitizeFileName(originalName)
-                                )
-
-                                FileOutputStream(target).use { output ->
-                                    zip.copyTo(output)
-                                }
-
-                                if (target.exists() && target.length() > 0) {
-                                    result += target
-                                } else {
-                                    target.delete()
-                                }
+                        // Не полагаемся только на имя внутри ZIP. Mail.ru может
+                        // отдавать имена с нестандартной кодировкой, поэтому
+                        // сначала сохраняем каждый файл во временный кандидат,
+                        // а затем определяем настоящий Excel по содержимому.
+                        val candidateName =
+                            if (safeName.isBlank() || safeName == "schedule.xlsx") {
+                                "__mail_candidate_$index.bin"
+                            } else {
+                                "__mail_candidate_$index"
                             }
+
+                        val candidate = File(folder, candidateName)
+                        FileOutputStream(candidate).use { output ->
+                            zip.copyTo(output)
+                        }
+
+                        if (!candidate.exists() || candidate.length() <= 0) {
+                            candidate.delete()
+                            continue
+                        }
+
+                        val excelType = detectExcelType(candidate)
+                        if (excelType == null) {
+                            candidate.delete()
+                            continue
+                        }
+
+                        excelEntries++
+
+                        val extension = if (excelType == "xls") "xls" else "xlsx"
+                        val originalBase =
+                            safeName.substringBeforeLast('.', safeName)
+                                .ifBlank { "schedule_${excelEntries}" }
+                        val outputName = "$originalBase.$extension"
+                        val target = uniqueFile(folder, sanitizeFileName(outputName))
+
+                        if (!candidate.renameTo(target)) {
+                            candidate.copyTo(target, overwrite = true)
+                            candidate.delete()
+                        }
+
+                        if (target.exists() && target.length() > 0) {
+                            result += target
+                        } else {
+                            target.delete()
                         }
                     } finally {
                         zip.closeEntry()
@@ -440,32 +412,96 @@ object ScheduleRepository {
             }
         } catch (e: Exception) {
             throw IllegalStateException(
-                "Mail ZIP повреждён или не поддерживается: ${e.message ?: e.javaClass.simpleName}",
+                "Mail ZIP повреждён или не поддерживается: " +
+                    (e.message ?: e.javaClass.simpleName),
                 e
+            )
+        }
+
+        if (result.isEmpty() && detectedEntries > 0) {
+            throw IllegalStateException(
+                "В ZIP найдено файлов: $detectedEntries, " +
+                    "но среди них не распознан Excel"
             )
         }
 
         return result
     }
 
-    private fun replaceCache(
-        context: Context,
-        files: List<File>
-    ): List<File> {
+    private fun detectExcelType(file: File): String? {
+        val prefix = ByteArray(8)
+        val count = file.inputStream().use { input ->
+            var read = 0
+            while (read < prefix.size) {
+                val n = input.read(prefix, read, prefix.size - read)
+                if (n <= 0) break
+                read += n
+            }
+            read
+        }
+
+        if (count >= 8 &&
+            prefix[0] == 0xD0.toByte() &&
+            prefix[1] == 0xCF.toByte() &&
+            prefix[2] == 0x11.toByte() &&
+            prefix[3] == 0xE0.toByte() &&
+            prefix[4] == 0xA1.toByte() &&
+            prefix[5] == 0xB1.toByte() &&
+            prefix[6] == 0x1A.toByte() &&
+            prefix[7] == 0xE1.toByte()
+        ) {
+            return "xls"
+        }
+
+        if (count < 4 ||
+            prefix[0] != 'P'.code.toByte() ||
+            prefix[1] != 'K'.code.toByte()
+        ) {
+            return null
+        }
+
+        return try {
+            var hasSpreadsheetContentType = false
+
+            ZipInputStream(file.inputStream()).use { innerZip ->
+                while (true) {
+                    val innerEntry = innerZip.nextEntry ?: break
+                    try {
+                        val name = innerEntry.name.orEmpty()
+                        if (name.equals("[Content_Types].xml", ignoreCase = true)) {
+                            val text = innerZip.readBytes()
+                                .toString(Charsets.UTF_8)
+                                .lowercase()
+                            if (text.contains("spreadsheetml.sheet") ||
+                                text.contains("application/vnd.ms-excel")) {
+                                hasSpreadsheetContentType = true
+                                break
+                            }
+                        }
+                    } finally {
+                        innerZip.closeEntry()
+                    }
+                }
+            }
+
+            if (hasSpreadsheetContentType) "xlsx" else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun replaceCache(context: Context, files: List<File>): List<File> {
         if (files.isEmpty()) {
             throw IllegalStateException("Нет Excel-файлов для сохранения")
         }
 
         val target = cacheDir(context)
         val old = File(context.filesDir, OLD_CACHE_DIR)
-
         old.deleteRecursively()
 
         if (target.exists()) {
             if (!target.renameTo(old)) {
-                throw IllegalStateException(
-                    "Не удалось подготовить старый кэш"
-                )
+                throw IllegalStateException("Не удалось подготовить старый кэш")
             }
         }
 
@@ -479,18 +515,12 @@ object ScheduleRepository {
                     )
                 }
 
-                source.copyTo(
-                    uniqueFile(target, source.name),
-                    overwrite = true
-                )
+                source.copyTo(uniqueFile(target, source.name), overwrite = true)
             }
 
             val result = readCachedFiles(context)
-
             if (result.isEmpty()) {
-                throw IllegalStateException(
-                    "Не удалось сохранить Excel-файлы"
-                )
+                throw IllegalStateException("Не удалось сохранить Excel-файлы")
             }
 
             result.forEach { file ->
@@ -525,19 +555,12 @@ object ScheduleRepository {
         return lower.endsWith(".xlsx") || lower.endsWith(".xls")
     }
 
-    private fun uniqueFile(
-        folder: File,
-        requestedName: String
-    ): File {
+    private fun uniqueFile(folder: File, requestedName: String): File {
         val safeRequestedName =
             if (requestedName.isBlank()) "schedule.xlsx" else requestedName
 
         val dot = safeRequestedName.lastIndexOf('.')
-
-        val base =
-            if (dot > 0) safeRequestedName.substring(0, dot)
-            else safeRequestedName
-
+        val base = if (dot > 0) safeRequestedName.substring(0, dot) else safeRequestedName
         val extension =
             if (dot > 0 && dot < safeRequestedName.length - 1) {
                 safeRequestedName.substring(dot + 1)
@@ -549,12 +572,11 @@ object ScheduleRepository {
         var counter = 2
 
         while (file.exists()) {
-            val newName =
-                if (extension.isBlank()) {
-                    "$base ($counter)"
-                } else {
-                    "$base ($counter).$extension"
-                }
+            val newName = if (extension.isBlank()) {
+                "$base ($counter)"
+            } else {
+                "$base ($counter).$extension"
+            }
 
             file = File(folder, newName)
             counter++
@@ -567,22 +589,14 @@ object ScheduleRepository {
         val cleaned = name
             .substringAfterLast('/')
             .substringAfterLast('\\')
-            .replace(
-                Regex("[\\\\/:*?\"<>|]"),
-                "_"
-            )
+            .replace(Regex("[\\\\/:*?\"<>|]"), "_")
             .trim()
 
         return if (cleaned.isBlank()) "schedule.xlsx" else cleaned
     }
 
-    private fun queryDisplayName(
-        context: Context,
-        uri: Uri
-    ): String? {
-        val projection = arrayOf(
-            android.provider.OpenableColumns.DISPLAY_NAME
-        )
+    private fun queryDisplayName(context: Context, uri: Uri): String? {
+        val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
 
         return context.contentResolver.query(
             uri,
@@ -591,9 +605,7 @@ object ScheduleRepository {
             null,
             null
         )?.use { cursor ->
-            if (!cursor.moveToFirst()) {
-                return@use null
-            }
+            if (!cursor.moveToFirst()) return@use null
 
             val index = cursor.getColumnIndex(
                 android.provider.OpenableColumns.DISPLAY_NAME
@@ -603,18 +615,14 @@ object ScheduleRepository {
         }
     }
 
-    private fun readConnectionText(
-        connection: HttpURLConnection
-    ): String {
-        val stream =
-            if (connection.responseCode >= 400) {
-                connection.errorStream
-            } else {
-                connection.inputStream
-            }
+    private fun readConnectionText(connection: HttpURLConnection): String {
+        val stream = if (connection.responseCode >= 400) {
+            connection.errorStream
+        } else {
+            connection.inputStream
+        }
 
         if (stream == null) return ""
-
         return stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
     }
 
@@ -625,11 +633,9 @@ object ScheduleRepository {
     }
 
     private fun hexPrefix(bytes: ByteArray, max: Int = 16): String {
-        return bytes
-            .take(max)
-            .joinToString(" ") { byte ->
-                "%02X".format(byte.toInt() and 0xFF)
-            }
+        return bytes.take(max).joinToString(" ") { byte ->
+            "%02X".format(byte.toInt() and 0xFF)
+        }
     }
 
     private fun shorten(text: String, max: Int = 300): String {
@@ -637,8 +643,6 @@ object ScheduleRepository {
             .replace("\n", " ")
             .replace("\r", " ")
             .trim()
-            .let {
-                if (it.length <= max) it else it.take(max) + "..."
-            }
+            .let { if (it.length <= max) it else it.take(max) + "..." }
     }
 }
