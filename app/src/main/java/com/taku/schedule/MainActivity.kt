@@ -49,6 +49,26 @@ class MainActivity : AppCompatActivity() {
                     view: WebView?,
                     url: String?
                 ): Boolean = false
+
+                override fun onPageFinished(
+                    view: WebView?,
+                    url: String?
+                ) {
+                    super.onPageFinished(view, url)
+
+                    view?.evaluateJavascript(
+                        """
+                        (function() {
+                            if (document.getElementById('scheduleCustomizationScript')) return;
+                            var script = document.createElement('script');
+                            script.id = 'scheduleCustomizationScript';
+                            script.src = './customization.js';
+                            document.head.appendChild(script);
+                        })();
+                        """.trimIndent(),
+                        null
+                    )
+                }
             }
 
             addJavascriptInterface(Bridge(), "Android")
