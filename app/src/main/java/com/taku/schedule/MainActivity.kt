@@ -10,21 +10,28 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.Calendar
-import java.util.zip.ZipInputStream
 import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
-    private val publicCode = "vH1B/7LrFtqWqP"
+
+    private val openExcel =
+        registerForActivityResult(
+            ActivityResultContracts.OpenMultipleDocuments()
+        ) { uris ->
+
+            if (uris.isNullOrEmpty()) {
+                return@registerForActivityResult
+            }
+
+            importSelectedFiles(uris)
+        }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,88 +40,270 @@ class MainActivity : AppCompatActivity() {
         ScheduleSync.scheduleNextSunday(this)
 
         web = WebView(this).apply {
+
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.allowFileAccess = true
             settings.allowContentAccess = true
+            settings.loadsImagesAutomatically = true
+
             webChromeClient = WebChromeClient()
-            webViewClient = WebViewClient()
-            addJavascriptInterface(Bridge(), "Android")
-            loadUrl("file:///android_asset/index.html")
+
+            webViewClient = object : WebViewClient() {
+
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    url: String?
+                ): Boolean {
+                    return false
+                }
+            }
+
+            addJavascriptInterface(
+                Bridge(),
+                "Android"
+            )
+
+            loadUrl(
+                "file:///android_asset/index.html"
+            )
         }
 
         setContentView(web)
     }
 
+    override fun onDestroy() {
+
+        if (::web.isInitialized) {
+            web.removeJavascriptInterface("Android")
+            web.destroy()
+        }
+
+        super.onDestroy()
+    }
+
     inner class Bridge {
 
+        /**
+         * Запускается кнопкой «Обновить».
+         */
         @JavascriptInterface
         fun sync() {
+
             thread {
+
                 try {
+
                     if (!isOnline()) {
-                        sendCached("Нет интернета. Использую сохранённое расписание.")
+
+                        val cached =
+                            ScheduleRepository.readCachedFiles(
+                                this@MainActivity
+                            )
+
+                        if (cached.isNotEmpty()) {
+
+                            sendFiles(
+                                cached,
+                                "Нет интернета • используется сохранённое расписание"
+                            )
+
+                        } else {
+
+                            sendError(
+                                "Нет интернета и ещё нет сохранённого Excel-файла"
+                            )
+                        }
+
                         return@thread
                     }
 
-                    val files = downloadScheduleToCache()
-                    sendFiles(files, "Расписание обновлено")
+                    val files =
+                        ScheduleRepository.downloadFromCloud(
+                            this@MainActivity
+                        )
+
+                    sendFiles(
+                        files,
+                        "Расписание обновлено из Mail Облака"
+                    )
 
                 } catch (e: Exception) {
-                    val cached = readCachedFiles()
+
+                    val cached =
+                        ScheduleRepository.readCachedFiles(
+                            this@MainActivity
+                        )
+
                     if (cached.isNotEmpty()) {
-                        sendFiles(cached, "Нет связи. Использую сохранённую копию.")
+
+                        sendFiles(
+                            cached,
+                            "Не удалось обновить • используется сохранённая копия"
+                        )
+
                     } else {
-                        sendError(e.message ?: "Ошибка обновления")
+
+                        sendError(
+                            e.message
+                                ?: "Не удалось загрузить расписание"
+                        )
                     }
                 }
             }
         }
 
+        /**
+         * Загружает сохранённые Excel-файлы.
+         */
         @JavascriptInterface
         fun loadCached() {
+
             thread {
+
                 try {
-                    val files = readCachedFiles()
+
+                    val files =
+                        ScheduleRepository.readCachedFiles(
+                            this@MainActivity
+                        )
+
                     if (files.isEmpty()) {
-                        sendError("Сохранённого расписания пока нет. Нажмите «Обновить» при наличии интернета.")
+
+                        sendError(
+                            "Сохранённого расписания пока нет"
+                        )
+
                     } else {
-                        sendFiles(files, "Офлайн-копия расписания")
+
+                        sendFiles(
+                            files,
+                            "Офлайн-расписание"
+                        )
                     }
+
                 } catch (e: Exception) {
-                    sendError(e.message ?: "Не удалось открыть сохранённое расписание")
+
+                    sendError(
+                        e.message
+                            ?: "Не удалось открыть сохранённое расписание"
+                    )
                 }
             }
         }
 
+        /**
+         * Открывает системный выбор Excel-файлов.
+         */
+        @JavascriptInterface
+        fun pickExcel() {
+
+            runOnUiThread {
+
+                openExcel.launch(
+                    arrayOf(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "application/vnd.ms-excel"
+                    )
+                )
+            }
+        }
+
+        /**
+         * Открывает публичную страницу Mail Облака.
+         */
         @JavascriptInterface
         fun openSource() {
+
             runOnUiThread {
-                startActivity(
-                    Intent(
-                        Intent.ACTION_VIEW,
-                        Uri.parse("https://cloud.mail.ru/public/$publicCode")
+
+                try {
+
+                    startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse(
+                                ScheduleRepository.PUBLIC_URL
+                            )
+                        )
                     )
+
+                } catch (_: Exception) {
+                    // Браузер не найден.
+                }
+            }
+        }
+
+        /**
+         * Возвращает количество сохранённых файлов.
+         */
+        @JavascriptInterface
+        fun getCachedCount(): Int {
+
+            return ScheduleRepository
+                .readCachedFiles(
+                    this@MainActivity
+                )
+                .size
+        }
+    }
+
+    private fun importSelectedFiles(
+        uris: List<Uri>
+    ) {
+
+        thread {
+
+            try {
+
+                val files =
+                    ScheduleRepository.importExcelFiles(
+                        this@MainActivity,
+                        uris
+                    )
+
+                sendFiles(
+                    files,
+                    "Excel загружен • сохранено файлов: ${files.size}"
+                )
+
+            } catch (e: Exception) {
+
+                sendError(
+                    e.message
+                        ?: "Не удалось загрузить Excel"
                 )
             }
         }
     }
 
-    private fun sendCached(message: String) {
-        val files = readCachedFiles()
-        if (files.isEmpty()) {
-            sendError(message)
-        } else {
-            sendFiles(files, message)
-        }
-    }
+    private fun sendFiles(
+        files: List<File>,
+        status: String
+    ) {
 
-    private fun sendFiles(files: List<File>, status: String) {
-        val result = JSONArray()
+        if (files.isEmpty()) {
+
+            sendError(
+                "Excel-файлы не найдены"
+            )
+
+            return
+        }
+
+        val result =
+            JSONArray()
 
         files.forEach { file ->
-            val item = JSONObject()
-            item.put("name", file.name)
+
+            val item =
+                JSONObject()
+
+            item.put(
+                "name",
+                file.name
+            )
+
             item.put(
                 "data",
                 android.util.Base64.encodeToString(
@@ -122,125 +311,78 @@ class MainActivity : AppCompatActivity() {
                     android.util.Base64.NO_WRAP
                 )
             )
+
             result.put(item)
         }
 
+        val filesJson =
+            result.toString()
+
+        val js =
+            "window.onNativeFiles(" +
+                    JSONObject.quote(filesJson) +
+                    "," +
+                    JSONObject.quote(status) +
+                    ");"
+
         runOnUiThread {
-            web.evaluateJavascript(
-                "window.onNativeFiles(${JSONObject.quote(result.toString())}, ${JSONObject.quote(status)});",
-                null
-            )
-        }
-    }
 
-    private fun sendError(message: String) {
-        runOnUiThread {
-            web.evaluateJavascript(
-                "window.onNativeError(${JSONObject.quote(message)});",
-                null
-            )
-        }
-    }
-
-    private fun cacheDir(): File = File(filesDir, "schedule_cache")
-
-    private fun downloadScheduleToCache(): List<File> {
-        val zipUrl = createZipLink(publicCode)
-        val zipBytes = httpGet(zipUrl)
-
-        val tempDir = File(filesDir, "schedule_cache_tmp").apply {
-            deleteRecursively()
-            mkdirs()
-        }
-
-        val downloaded = unzipXlsx(zipBytes, tempDir)
-        if (downloaded.isEmpty()) {
-            tempDir.deleteRecursively()
-            error("В архиве Mail Облака нет Excel-файлов")
-        }
-
-        val target = cacheDir()
-        target.deleteRecursively()
-        if (!tempDir.renameTo(target)) {
-            target.mkdirs()
-            downloaded.forEach { file ->
-                file.copyTo(File(target, file.name), overwrite = true)
+            if (!::web.isInitialized) {
+                return@runOnUiThread
             }
-            tempDir.deleteRecursively()
-        }
 
-        return readCachedFiles()
+            web.evaluateJavascript(
+                js,
+                null
+            )
+        }
     }
 
-    private fun readCachedFiles(): List<File> =
-        cacheDir().listFiles()
-            ?.filter { it.isFile && it.extension.equals("xlsx", true) }
-            ?.sortedBy { it.name.lowercase() }
-            ?: emptyList()
+    private fun sendError(
+        message: String
+    ) {
+
+        val js =
+            "window.onNativeError(" +
+                    JSONObject.quote(message) +
+                    ");"
+
+        runOnUiThread {
+
+            if (!::web.isInitialized) {
+                return@runOnUiThread
+            }
+
+            web.evaluateJavascript(
+                js,
+                null
+            )
+        }
+    }
 
     private fun isOnline(): Boolean {
-        val cm = getSystemService(ConnectivityManager::class.java) ?: return false
-        val network = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(network) ?: return false
-        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-    }
 
-    private fun createZipLink(code: String): String {
-        val url = URL("https://cloud.mail.ru/api/v3/zip/weblink")
-        val conn = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            connectTimeout = 20000
-            readTimeout = 30000
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json;charset=UTF-8")
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "ScheduleApp/1.0")
-        }
+        val manager =
+            getSystemService(
+                ConnectivityManager::class.java
+            )
+                ?: return false
 
-        val body = "{\"x-email\":\"anonym\",\"weblink_list\":[\"$code\"],\"name\":\"schedule\"}"
-        conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+        val network =
+            manager.activeNetwork
+                ?: return false
 
-        val text = readText(conn)
-        if (conn.responseCode !in 200..299) error("Mail Облако: HTTP ${conn.responseCode}")
+        val capabilities =
+            manager.getNetworkCapabilities(
+                network
+            )
+                ?: return false
 
-        val key = JSONObject(text).optString("key")
-        if (key.isBlank()) error("Mail Облако не вернул ссылку на архив")
-        return if (key.startsWith("http")) key else "https://cloud.mail.ru$key"
-    }
-
-    private fun httpGet(urlText: String): ByteArray {
-        val conn = (URL(urlText).openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = 20000
-            readTimeout = 60000
-            setRequestProperty("User-Agent", "ScheduleApp/1.0")
-            setRequestProperty("Referer", "https://cloud.mail.ru/public/$publicCode")
-        }
-        if (conn.responseCode !in 200..399) error("Загрузка расписания: HTTP ${conn.responseCode}")
-        return conn.inputStream.use { it.readBytes() }
-    }
-
-    private fun readText(conn: HttpURLConnection): String {
-        val stream = if (conn.responseCode >= 400) conn.errorStream else conn.inputStream
-        return stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-    }
-
-    private fun unzipXlsx(zipBytes: ByteArray, folder: File): List<File> {
-        val out = mutableListOf<File>()
-        ZipInputStream(zipBytes.inputStream()).use { zis ->
-            while (true) {
-                val entry = zis.nextEntry ?: break
-                if (!entry.isDirectory && entry.name.lowercase().endsWith(".xlsx")) {
-                    val safeName = entry.name.substringAfterLast('/')
-                        .replace(Regex("[^\\p{L}\\p{N}._ -]"), "_")
-                    val file = File(folder, safeName)
-                    FileOutputStream(file).use { fos -> zis.copyTo(fos) }
-                    out += file
-                }
-                zis.closeEntry()
-            }
-        }
-        return out
+        return capabilities.hasCapability(
+            NetworkCapabilities.NET_CAPABILITY_INTERNET
+        ) &&
+                capabilities.hasCapability(
+                    NetworkCapabilities.NET_CAPABILITY_VALIDATED
+                )
     }
 }

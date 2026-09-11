@@ -1,135 +1,3081 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0c12">
-<title>Расписание</title>
-<script src="./xlsx.full.min.js"></script>
-<style>
-:root{--bg:#090b10;--card:#1a1d2b;--card2:#202337;--field:#10121a;--line:#2c3040;--text:#f7f7fb;--muted:#9da1b2;--accent:#8b7cff;--accent2:#9b8cff;--ok:#61d7a4;--danger:#ff6673}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}body{padding:26px 18px 96px;max-width:760px;margin:auto}button,select{font:inherit}h1{font-size:46px;line-height:1;margin:30px 0 12px;font-weight:800;letter-spacing:-1.5px}.subtitle{font-size:22px;line-height:1.2;color:var(--muted);max-width:560px}.source-dot{position:fixed;right:-12px;top:118px;width:78px;height:78px;border-radius:25px;background:#111522;border:1px solid #242938;display:flex;align-items:center;justify-content:center;font-size:34px;z-index:2}.card{margin-top:38px;padding:32px 36px 36px;border-radius:34px;background:linear-gradient(145deg,#242641,#1b1e31);border:1px solid #3a3d58;box-shadow:0 20px 55px rgba(0,0,0,.28)}.label{font-size:20px;color:var(--muted);margin:0 0 12px 2px}.field{position:relative;margin-bottom:28px}.select{width:100%;height:104px;border:1px solid #2b2e3c;border-radius:27px;background:var(--field);color:var(--text);padding:0 56px 0 36px;font-size:24px;outline:none;appearance:none}.field:after{content:'⌄';position:absolute;right:24px;bottom:30px;color:#ddd;font-size:30px;pointer-events:none}.actions{display:grid;grid-template-columns:1fr 1fr;gap:20px}.btn{height:104px;border:1px solid #282c38;border-radius:27px;background:#1a1e29;color:var(--text);font-size:22px;font-weight:800}.btn.primary{background:var(--accent);border-color:var(--accent)}.btn:active{transform:scale(.985);opacity:.82}.statusline{display:flex;align-items:center;gap:12px;margin:28px 4px 18px;color:var(--muted);font-size:22px}.statusdot{width:17px;height:17px;border-radius:50%;background:var(--ok);flex:none}.statusdot.error{background:var(--danger)}.days{display:flex;gap:14px;overflow-x:auto;padding:0 2px 8px;scrollbar-width:none}.days::-webkit-scrollbar{display:none}.daybtn{flex:0 0 auto;min-width:126px;height:86px;border-radius:24px;background:#151923;border:1px solid #292e3b;color:#9ca2b4;font-size:22px;font-weight:800}.daybtn.selected{background:var(--accent);color:#fff;border-color:var(--accent)}.schedulebox{margin-top:18px;border:1px dashed #303646;border-radius:30px;background:#141820;overflow:hidden}.dayheader{padding:22px 24px;font-size:23px;font-weight:800;background:#1b1f2b;border-bottom:1px solid var(--line)}.lesson{padding:21px 24px;border-bottom:1px solid var(--line)}.lesson:last-child{border-bottom:0}.time{font-size:20px;font-weight:800;color:var(--accent2)}.name{margin-top:7px;font-size:19px;line-height:1.4}.room{margin-top:7px;color:var(--muted);font-size:16px}.empty{padding:40px 22px;text-align:center;color:var(--muted);font-size:20px}.bottom{position:fixed;left:18px;right:18px;bottom:16px;max-width:724px;margin:auto;height:82px;background:#131720;border:1px solid #2c3040;border-radius:31px;display:grid;grid-template-columns:repeat(3,1fr);padding:8px;z-index:5}.nav{border:0;background:transparent;color:#9ca2b4;border-radius:24px;font-size:18px;font-weight:800}.nav.active{background:#1d2230;color:#fff}.debug{display:none;white-space:pre-wrap;margin-top:16px;padding:12px;color:#7f8597;font-size:11px}.meta{margin-top:9px;color:#73798a;font-size:13px;text-align:center}.hidden{display:none}@media(max-width:520px){body{padding:14px 16px 94px}h1{font-size:42px;margin-top:34px}.subtitle{font-size:20px}.source-dot{top:116px}.card{margin-top:38px;padding:28px 36px 34px;border-radius:32px}.select{height:106px;font-size:23px;padding-left:35px}.actions{gap:18px}.btn{height:106px;font-size:21px}.daybtn{min-width:128px;height:86px}.bottom{left:16px;right:16px}.nav{font-size:17px}}
-</style>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    >
+
+    <title>Расписание</title>
+
+    <script src="./xlsx.full.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: #0b0910;
+            color: #ffffff;
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                Roboto,
+                Arial,
+                sans-serif;
+        }
+
+        body {
+            overflow: hidden;
+        }
+
+        button,
+        select,
+        input {
+            font: inherit;
+        }
+
+        button {
+            border: 0;
+            color: inherit;
+        }
+
+        #app {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background:
+                radial-gradient(
+                    circle at 50% -20%,
+                    rgba(116, 75, 190, 0.22),
+                    transparent 45%
+                ),
+                #0b0910;
+        }
+
+        .screen {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 22px 16px 100px;
+        }
+
+        .screen::-webkit-scrollbar {
+            width: 0;
+        }
+
+        .top-title {
+            padding: 2px 4px 15px;
+        }
+
+        .top-title h1 {
+            margin: 0;
+            font-size: 29px;
+            line-height: 1.15;
+            font-weight: 800;
+            letter-spacing: -0.7px;
+        }
+
+        .top-title p {
+            margin: 7px 0 0;
+            color: #928b9e;
+            font-size: 13px;
+        }
+
+        .main-card {
+            position: relative;
+            overflow: hidden;
+            padding: 17px;
+            border-radius: 23px;
+            background:
+                radial-gradient(
+                    circle at 100% 0%,
+                    rgba(160, 106, 255, 0.28),
+                    transparent 50%
+                ),
+                linear-gradient(
+                    145deg,
+                    #34214e 0%,
+                    #21162f 48%,
+                    #181221 100%
+                );
+            box-shadow:
+                0 18px 45px rgba(0, 0, 0, 0.35),
+                inset 0 1px rgba(255, 255, 255, 0.06);
+        }
+
+        .card-label {
+            color: #bcb0ca;
+            font-size: 12px;
+            margin-bottom: 7px;
+        }
+
+        .select-box {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .select-box select {
+            width: 100%;
+            height: 48px;
+            appearance: none;
+            border-radius: 14px;
+            padding: 0 42px 0 14px;
+            color: #fff;
+            background: rgba(12, 9, 17, 0.62);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            outline: none;
+        }
+
+        .select-box::after {
+            content: "⌄";
+            position: absolute;
+            right: 15px;
+            top: 11px;
+            color: #a999b7;
+            font-size: 22px;
+            pointer-events: none;
+        }
+
+        .action-row {
+            display: grid;
+            grid-template-columns: 1.35fr 1fr;
+            gap: 9px;
+            margin-top: 4px;
+        }
+
+        .primary-btn,
+        .secondary-btn {
+            height: 45px;
+            border-radius: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .primary-btn {
+            background:
+                linear-gradient(
+                    135deg,
+                    #a66cff,
+                    #7945d6
+                );
+            box-shadow:
+                0 7px 20px rgba(126, 70, 220, 0.27);
+        }
+
+        .secondary-btn {
+            background: rgba(255, 255, 255, 0.075);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .status {
+            min-height: 18px;
+            margin: 11px 3px 0;
+            color: #b9afc0;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .days-wrap {
+            margin-top: 17px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 0 4px 9px;
+        }
+
+        .section-title strong {
+            font-size: 15px;
+        }
+
+        .section-title span {
+            color: #77707e;
+            font-size: 11px;
+        }
+
+        .day-list {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 1px 2px 7px;
+        }
+
+        .day-list::-webkit-scrollbar {
+            height: 0;
+        }
+
+        .day-btn {
+            flex: 0 0 auto;
+            min-width: 62px;
+            height: 49px;
+            padding: 0 9px;
+            border-radius: 15px;
+            background: #17131d;
+            border: 1px solid rgba(255,255,255,0.055);
+            color: #aaa2b0;
+        }
+
+        .day-btn small {
+            display: block;
+            font-size: 9px;
+            margin-bottom: 3px;
+        }
+
+        .day-btn b {
+            font-size: 13px;
+        }
+
+        .day-btn.active {
+            color: #fff;
+            background: linear-gradient(
+                145deg,
+                #8550dd,
+                #6035a5
+            );
+            border-color: rgba(181, 137, 255, 0.45);
+        }
+
+        .schedule-list {
+            margin-top: 14px;
+        }
+
+        .lesson {
+            position: relative;
+            display: grid;
+            grid-template-columns: 61px 1fr;
+            gap: 12px;
+            margin-bottom: 9px;
+            padding: 13px 13px;
+            border-radius: 17px;
+            background: #151119;
+            border: 1px solid rgba(255,255,255,0.055);
+        }
+
+        .lesson-time {
+            color: #a975ff;
+            font-weight: 800;
+            font-size: 13px;
+            padding-top: 2px;
+        }
+
+        .lesson-name {
+            font-size: 14px;
+            line-height: 1.35;
+            font-weight: 650;
+            word-break: break-word;
+        }
+
+        .lesson-room {
+            margin-top: 5px;
+            color: #847c89;
+            font-size: 11px;
+        }
+
+        .empty {
+            padding: 28px 15px;
+            border-radius: 18px;
+            text-align: center;
+            color: #817986;
+            background: #141017;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .loading {
+            padding: 26px;
+            text-align: center;
+            color: #a59baa;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            height: 67px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            padding: 5px;
+            border-radius: 21px;
+            background: rgba(25, 19, 29, 0.96);
+            border: 1px solid rgba(255,255,255,0.07);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.45);
+            backdrop-filter: blur(16px);
+            z-index: 50;
+        }
+
+        .nav-btn {
+            border-radius: 16px;
+            background: transparent;
+            color: #746c79;
+            cursor: pointer;
+        }
+
+        .nav-btn .icon {
+            display: block;
+            font-size: 19px;
+            line-height: 20px;
+        }
+
+        .nav-btn .label {
+            display: block;
+            margin-top: 4px;
+            font-size: 10px;
+        }
+
+        .nav-btn.active {
+            color: #b77dff;
+            background: rgba(136, 74, 211, 0.13);
+        }
+
+        .screen-page {
+            display: none;
+        }
+
+        .screen-page.active {
+            display: block;
+        }
+
+        /* Calendar */
+
+        .calendar-card {
+            padding: 16px;
+            border-radius: 22px;
+            background:
+                linear-gradient(
+                    145deg,
+                    #302044,
+                    #1b1425
+                );
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .calendar-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .calendar-head strong {
+            font-size: 17px;
+        }
+
+        .month-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .month-buttons button {
+            width: 36px;
+            height: 36px;
+            border-radius: 11px;
+            background: rgba(255,255,255,0.08);
+            cursor: pointer;
+        }
+
+        .weekdays,
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .weekday {
+            text-align: center;
+            color: #7f7686;
+            font-size: 10px;
+            padding-bottom: 4px;
+        }
+
+        .calendar-day {
+            min-height: 39px;
+            border-radius: 11px;
+            background: rgba(255,255,255,0.035);
+            color: #c8c1cc;
+            cursor: pointer;
+        }
+
+        .calendar-day.empty-day {
+            background: transparent;
+            cursor: default;
+        }
+
+        .calendar-day.today {
+            border: 1px solid rgba(167, 111, 255, 0.6);
+        }
+
+        .calendar-day.selected {
+            background: linear-gradient(
+                135deg,
+                #8b51e6,
+                #6339a7
+            );
+            color: #fff;
+        }
+
+        .calendar-day.has-data::after {
+            content: "";
+            display: block;
+            width: 4px;
+            height: 4px;
+            margin: 2px auto 0;
+            border-radius: 50%;
+            background: #b984ff;
+        }
+
+        .calendar-day.selected::after {
+            background: #fff;
+        }
+
+        /* Settings */
+
+        .settings-card {
+            padding: 16px;
+            margin-bottom: 11px;
+            border-radius: 19px;
+            background: #151119;
+            border: 1px solid rgba(255,255,255,0.055);
+        }
+
+        .settings-card h3 {
+            margin: 0 0 6px;
+            font-size: 15px;
+        }
+
+        .settings-card p {
+            margin: 0 0 13px;
+            color: #817987;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .wide-btn {
+            width: 100%;
+            height: 44px;
+            border-radius: 13px;
+            background: linear-gradient(
+                135deg,
+                #8d54e9,
+                #673aa7
+            );
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .outline-btn {
+            width: 100%;
+            height: 42px;
+            border-radius: 13px;
+            margin-top: 8px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.07);
+            cursor: pointer;
+        }
+
+        .info-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 9px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.045);
+            font-size: 12px;
+        }
+
+        .info-line:last-child {
+            border-bottom: 0;
+        }
+
+        .info-line span:first-child {
+            color: #817987;
+        }
+
+        .info-line span:last-child {
+            text-align: right;
+        }
+
+        /* Modal */
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 12px;
+            background: rgba(0,0,0,0.64);
+            z-index: 100;
+        }
+
+        .modal.open {
+            display: flex;
+        }
+
+        .modal-box {
+            width: 100%;
+            max-width: 500px;
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 18px;
+            border-radius: 24px;
+            background: #19131f;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 -10px 50px rgba(0,0,0,0.5);
+        }
+
+        .modal-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .modal-title strong {
+            font-size: 17px;
+        }
+
+        .close-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.07);
+            cursor: pointer;
+        }
+
+        .file-list {
+            margin-top: 10px;
+        }
+
+        .file-item {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            color: #b4acb8;
+            font-size: 12px;
+            word-break: break-word;
+        }
+
+        @media (min-width: 600px) {
+            .screen {
+                width: 560px;
+                margin: auto;
+            }
+
+            .bottom-nav {
+                width: 540px;
+                left: 50%;
+                right: auto;
+                transform: translateX(-50%);
+            }
+
+            .modal {
+                align-items: center;
+            }
+        }
+    </style>
 </head>
+
 <body>
-<div class="source-dot" onclick="openSource()">↗</div>
-<h1>Расписание</h1>
-<div class="subtitle">Mail Облако • автоматическая<br>синхронизация</div>
 
-<section class="card">
-  <div class="label">Группа</div>
-  <div class="field">
-    <select id="groupSelect" class="select" onchange="selectGroup(this.value)">
-      <option value="">Введите группу</option>
-    </select>
-  </div>
+<div id="app">
 
-  <div class="label">Дата</div>
-  <div class="field">
-    <select id="dateSelect" class="select" onchange="selectDate(this.value)">
-      <option value="">Выберите дату</option>
-    </select>
-  </div>
+    <main class="screen">
 
-  <div class="actions">
-    <button class="btn primary" onclick="syncNow()">↻<br>Обновить</button>
-    <button class="btn" onclick="goToday()">Сегодня</button>
-  </div>
-</section>
+        <!-- РАСПИСАНИЕ -->
 
-<div class="statusline"><span id="statusDot" class="statusdot"></span><span id="status">Проверяю расписание…</span></div>
-<div id="days" class="days"></div>
-<div id="schedule" class="schedulebox"><div class="empty">Выбери группу выше.</div></div>
-<div id="meta" class="meta"></div>
-<div id="debug" class="debug"></div>
+        <section
+            id="schedulePage"
+            class="screen-page active"
+        >
 
-<nav class="bottom">
-  <button class="nav active">Расписание</button>
-  <button class="nav" onclick="goCalendar()">Календарь</button>
-  <button class="nav" onclick="showSettings()">Настройки</button>
-</nav>
+            <div class="top-title">
+                <h1>Расписание</h1>
+                <p>Mail Облако • автоматическая синхронизация</p>
+            </div>
+
+            <div class="main-card">
+
+                <div class="card-label">
+                    Учебная группа
+                </div>
+
+                <div class="select-box">
+                    <select id="groupSelect">
+                        <option value="">
+                            Загрузка групп...
+                        </option>
+                    </select>
+                </div>
+
+                <div class="card-label">
+                    Дата
+                </div>
+
+                <div class="select-box">
+                    <select id="dateSelect">
+                        <option value="">
+                            Загрузка дат...
+                        </option>
+                    </select>
+                </div>
+
+                <div class="action-row">
+                    <button
+                        id="refreshBtn"
+                        class="primary-btn"
+                        onclick="syncCloud()"
+                    >
+                        Обновить
+                    </button>
+
+                    <button
+                        class="secondary-btn"
+                        onclick="selectToday()"
+                    >
+                        Сегодня
+                    </button>
+                </div>
+
+                <div
+                    id="status"
+                    class="status"
+                >
+                    Подготовка...
+                </div>
+
+            </div>
+
+            <div class="days-wrap">
+
+                <div class="section-title">
+                    <strong>Дни</strong>
+                    <span id="currentGroupLabel"></span>
+                </div>
+
+                <div
+                    id="dayList"
+                    class="day-list"
+                ></div>
+
+            </div>
+
+            <div class="schedule-list">
+
+                <div
+                    id="schedule"
+                    class="loading"
+                >
+                    Загружаем расписание...
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- КАЛЕНДАРЬ -->
+
+        <section
+            id="calendarPage"
+            class="screen-page"
+        >
+
+            <div class="top-title">
+                <h1>Календарь</h1>
+                <p>Выберите день расписания</p>
+            </div>
+
+            <div class="calendar-card">
+
+                <div class="calendar-head">
+
+                    <strong id="calendarTitle">
+                        -
+                    </strong>
+
+                    <div class="month-buttons">
+
+                        <button
+                            onclick="changeMonth(-1)"
+                        >
+                            ‹
+                        </button>
+
+                        <button
+                            onclick="changeMonth(1)"
+                        >
+                            ›
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <div
+                    id="weekdays"
+                    class="weekdays"
+                ></div>
+
+                <div
+                    id="calendarGrid"
+                    class="calendar-grid"
+                ></div>
+
+            </div>
+
+            <div style="height:12px"></div>
+
+            <div class="settings-card">
+                <h3>Выбранная дата</h3>
+                <p id="calendarSelectedText">
+                    Дата не выбрана
+                </p>
+
+                <button
+                    class="wide-btn"
+                    onclick="goToSelectedCalendarDate()"
+                >
+                    Открыть расписание
+                </button>
+            </div>
+
+        </section>
+
+
+        <!-- НАСТРОЙКИ -->
+
+        <section
+            id="settingsPage"
+            class="screen-page"
+        >
+
+            <div class="top-title">
+                <h1>Настройки</h1>
+                <p>Источник и локальные данные</p>
+            </div>
+
+            <div class="settings-card">
+
+                <h3>Excel-файл</h3>
+
+                <p>
+                    Можно самостоятельно выбрать один или несколько
+                    файлов Excel. Они сохранятся внутри приложения и
+                    будут доступны без интернета.
+                </p>
+
+                <button
+                    class="wide-btn"
+                    onclick="pickExcel()"
+                >
+                    Загрузить Excel
+                </button>
+
+                <button
+                    class="outline-btn"
+                    onclick="loadOffline()"
+                >
+                    Использовать сохранённые файлы
+                </button>
+
+            </div>
+
+            <div class="settings-card">
+
+                <h3>Mail Облако</h3>
+
+                <p>
+                    Основной источник расписания.
+                    При обновлении приложение получает новые Excel-файлы
+                    и заменяет локальную копию только после успешной загрузки.
+                </p>
+
+                <button
+                    class="wide-btn"
+                    onclick="syncCloud()"
+                >
+                    Синхронизировать сейчас
+                </button>
+
+                <button
+                    class="outline-btn"
+                    onclick="openSource()"
+                >
+                    Открыть Mail Облако
+                </button>
+
+            </div>
+
+            <div class="settings-card">
+
+                <h3>Локальные данные</h3>
+
+                <div class="info-line">
+                    <span>Excel-файлов</span>
+                    <span id="cachedCount">0</span>
+                </div>
+
+                <div class="info-line">
+                    <span>Групп</span>
+                    <span id="settingsGroups">0</span>
+                </div>
+
+                <div class="info-line">
+                    <span>Дат</span>
+                    <span id="settingsDates">0</span>
+                </div>
+
+            </div>
+
+            <div class="settings-card">
+
+                <h3>О приложении</h3>
+
+                <div class="info-line">
+                    <span>Название</span>
+                    <span>Расписание</span>
+                </div>
+
+                <div class="info-line">
+                    <span>Версия</span>
+                    <span>1.0</span>
+                </div>
+
+                <div class="info-line">
+                    <span>Режим</span>
+                    <span>Онлайн + офлайн</span>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- НИЖНЕЕ МЕНЮ -->
+
+    <nav class="bottom-nav">
+
+        <button
+            id="navSchedule"
+            class="nav-btn active"
+            onclick="showPage('schedule')"
+        >
+            <span class="icon">▣</span>
+            <span class="label">Расписание</span>
+        </button>
+
+        <button
+            id="navCalendar"
+            class="nav-btn"
+            onclick="showPage('calendar')"
+        >
+            <span class="icon">□</span>
+            <span class="label">Календарь</span>
+        </button>
+
+        <button
+            id="navSettings"
+            class="nav-btn"
+            onclick="showPage('settings')"
+        >
+            <span class="icon">⚙</span>
+            <span class="label">Настройки</span>
+        </button>
+
+    </nav>
+
+</div>
+
+
+<!-- СООБЩЕНИЕ -->
+
+<div
+    id="messageModal"
+    class="modal"
+    onclick="closeMessage(event)"
+>
+
+    <div
+        class="modal-box"
+        onclick="event.stopPropagation()"
+    >
+
+        <div class="modal-title">
+
+            <strong id="messageTitle">
+                Сообщение
+            </strong>
+
+            <button
+                class="close-btn"
+                onclick="closeMessage()"
+            >
+                ×
+            </button>
+
+        </div>
+
+        <div
+            id="messageText"
+            style="
+                color:#a9a0ad;
+                font-size:13px;
+                line-height:1.5;
+            "
+        ></div>
+
+    </div>
+
+</div>
+
 
 <script>
-const publicSource='https://cloud.mail.ru/public/vH1B/7LrFtqWqP';
-let files=[],parsedDocuments=[],groups=[],schedule=[];
-let selectedGroup='',selectedDate='',syncRunning=false;
-const $=id=>document.getElementById(id);
 
-function clean(v){return v==null?'':String(v).replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim()}
-function norm(v){return clean(v).toLowerCase().replace(/ё/g,'е').replace(/ /g,'')}
-function isLectureSheet(v){const n=norm(v);return n==='лекции'||n.includes('лекци')}
-function isGroupName(v){const x=clean(v);return !!x&&norm(x)!=='каб'&&x.length<=30&&/^\d{1,3}/.test(x)}
-function isDay(v){return /^(ПН|ВТ|СР|ЧТ|ПТ|СБ|ВС)\s+\d{1,2}\.\d{1,2}(?:\.\d{2,4})?$/i.test(clean(v))}
-function dateKey(v,fallback){const m=clean(v).match(/\b(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?\b/);if(!m)return fallback||0;let y=m[3]?+m[3]:new Date().getFullYear();if(y<100)y+=2000;return new Date(y,+m[2]-1,+m[1]).getTime()}
-function fileDateKey(name){const m=clean(name).match(/(\d{1,2})[.\-_](\d{1,2})[.\-_](\d{2,4})/);if(!m)return 0;let y=+m[3];if(y<100)y+=2000;return new Date(y,+m[2]-1,+m[1]).getTime()}
-function timeValue(v){const m=clean(v).replace(',', '.').replace(':','.').match(/^(\d{1,2})\.(\d{2})$/);return m? +m[1]*60 + +m[2] : 99999}
-function setStatus(text,error=false){$('status').textContent=text;$('statusDot').classList.toggle('error',!!error)}
-function debug(t){$('debug').textContent=t}
+"use strict";
 
-function parseXlsx(file){
-  const b=atob(file.data),bytes=new Uint8Array(b.length);for(let i=0;i<b.length;i++)bytes[i]=b.charCodeAt(i);
-  const wb=XLSX.read(bytes,{type:'array',cellDates:true});const out=[];
-  for(const name of wb.SheetNames){const sh=wb.Sheets[name];out.push({name,rows:XLSX.utils.sheet_to_json(sh,{header:1,defval:'',raw:false}),merges:sh['!merges']||[]})}return out
+
+/* =========================================================
+   СОСТОЯНИЕ ПРИЛОЖЕНИЯ
+   ========================================================= */
+
+const state = {
+
+    files: [],
+
+    data: {},
+
+    groups: [],
+
+    dates: [],
+
+    selectedGroup: "",
+
+    selectedDate: "",
+
+    calendarDate: new Date(),
+
+    calendarSelected: "",
+
+    loading: false
+};
+
+
+/* =========================================================
+   ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+   ========================================================= */
+
+function clean(value) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return "";
+    }
+
+    return String(value)
+        .replace(/\u00A0/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 }
-function findGroups(sheet){
-  const out=[];for(let r=0;r<Math.min(5,sheet.rows.length);r++){const row=sheet.rows[r]||[];for(let c=0;c<row.length;c++){const name=clean(row[c]);if(!isGroupName(name))continue;if(!out.some(x=>norm(x.name)===norm(name)))out.push({name,column:c,roomColumn:c-1})}}return out
+
+
+function normalize(value) {
+
+    return clean(value)
+        .toLowerCase()
+        .replace(/ё/g, "е");
 }
-function parseGroup(sheet,info,fileIndex){
-  const out=[];let day='',dayIdx=fileIndex||0;const rows=sheet.rows;
-  for(let r=0;r<rows.length;r++){
-    const row=rows[r]||[],a=clean(row[0]);if(isDay(a)){day=a;dayIdx=r}
-    if(!day)continue;const time=clean(row[1]);const lesson=clean(row[info.column]);const room=info.roomColumn>=0?clean(row[info.roomColumn]):'';
-    if(!lesson||norm(lesson)==='каб')continue;
-    out.push({day,time,lesson,room,dateKey:dateKey(day,dayIdx),row:r,fileIndex})
-  }return out
+
+
+function escapeHtml(value) {
+
+    return clean(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
-function buildData(){
-  groups=[];parsedDocuments=[];let lectureSheets=0;const logs=[];
-  files.forEach((file,fileIndex)=>{try{for(const sheet of parseXlsx(file)){if(!isLectureSheet(sheet.name))continue;lectureSheets++;const found=findGroups(sheet);logs.push(file.name+' → '+sheet.name+': '+found.length+' групп');parsedDocuments.push({file,sheet,groups:found,fileDate:fileDateKey(file.name),fileIndex});for(const g of found)if(!groups.some(x=>norm(x.name)===norm(g.name)))groups.push({name:g.name})}}catch(e){logs.push(file.name+' → '+(e.message||e))}});
-  groups.sort((a,b)=>a.name.localeCompare(b.name,'ru',{numeric:true,sensitivity:'base'}));
-  debug('XLSX: '+files.length+'\nЛисты «Лекции»: '+lectureSheets+'\nГруппы: '+groups.length+'\n'+logs.join('\n'));
-  renderGroups();
-  if(!groups.length){setStatus(lectureSheets?'Группы не найдены':'Лист «Лекции» не найден',true);$('schedule').innerHTML='<div class="empty">Не удалось найти расписание.</div>';return}
-  if(!selectedGroup||!groups.some(g=>norm(g.name)===norm(selectedGroup)))selectedGroup=groups[0].name;
-  $('groupSelect').value=selectedGroup;loadSchedule();
+
+
+function pad(number) {
+
+    return String(number).padStart(2, "0");
 }
-function renderGroups(){const s=$('groupSelect');s.innerHTML='<option value="">Введите группу</option>'+groups.map(g=>'<option value="'+escapeHtml(g.name)+'">'+escapeHtml(g.name)+'</option>').join('')}
-function escapeHtml(v){return clean(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-function loadSchedule(){
-  schedule=[];if(!selectedGroup){render();return}
-  for(const d of parsedDocuments){const info=d.groups.find(x=>norm(x.name)===norm(selectedGroup));if(info)schedule.push(...parseGroup(d.sheet,info,d.fileIndex))}
-  const unique=new Map();for(const x of schedule){const key=x.dateKey+'|'+x.time+'|'+x.lesson+'|'+x.room;if(!unique.has(key))unique.set(key,x)}schedule=[...unique.values()];
-  schedule.sort((a,b)=>(a.dateKey-b.dateKey)||timeValue(a.time)-timeValue(b.time));
-  const dates=[...new Map(schedule.map(x=>[x.dateKey,x.day])).entries()].sort((a,b)=>a[0]-b[0]);
-  if(!dates.length){selectedDate='';render();return}
-  if(!selectedDate||!dates.some(x=>String(x[0])===String(selectedDate))){const today=new Date();const todayStart=new Date(today.getFullYear(),today.getMonth(),today.getDate()).getTime();const exact=dates.find(x=>x[0]===todayStart);selectedDate=String(exact?exact[0]:dates[0][0])}
-  renderDates(dates);render();
+
+
+function dateKey(year, month, day) {
+
+    return (
+        String(year) +
+        "-" +
+        pad(month) +
+        "-" +
+        pad(day)
+    );
 }
-function renderDates(dates){
-  $('dateSelect').innerHTML=dates.map(([k,d])=>'<option value="'+k+'">'+escapeHtml(formatDate(d))+'</option>').join('');$('dateSelect').value=String(selectedDate);
-  $('days').innerHTML=dates.map(([k,d])=>'<button class="daybtn '+(String(k)===String(selectedDate)?'selected':'')+'" onclick="selectDate(\''+k+'\')">'+escapeHtml(shortDate(d))+'</button>').join('');
+
+
+function parseDateKey(value) {
+
+    if (!value) {
+        return null;
+    }
+
+    const match =
+        String(value).match(
+            /^(\d{4})-(\d{2})-(\d{2})$/
+        );
+
+    if (!match) {
+        return null;
+    }
+
+    return new Date(
+        Number(match[1]),
+        Number(match[2]) - 1,
+        Number(match[3])
+    );
 }
-function formatDate(d){const m=clean(d).match(/\s(\d{1,2})\.(\d{1,2})/);if(!m)return d;return m[1].padStart(2,'0')+'.'+m[2].padStart(2,'0')+'.'+new Date().getFullYear()}
-function shortDate(d){const m=clean(d).match(/^([А-ЯЁ]+)\s+(\d{1,2})\.(\d{1,2})/i);return m?m[1].toLowerCase()+', '+m[2]:d}
-function selectGroup(v){selectedGroup=v;selectedDate='';loadSchedule()}
-function selectDate(v){selectedDate=String(v);renderDates([...new Map(schedule.map(x=>[x.dateKey,x.day])).entries()].sort((a,b)=>a[0]-b[0]));render()}
-function goToday(){const now=new Date();const k=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();const hit=schedule.find(x=>x.dateKey===k);if(hit)selectedDate=String(k);renderDates([...new Map(schedule.map(x=>[x.dateKey,x.day])).entries()].sort((a,b)=>a[0]-b[0]));render()}
-function render(){
-  if(!selectedGroup){$('schedule').innerHTML='<div class="empty">Выбери группу выше.</div>';return}
-  const items=selectedDate?schedule.filter(x=>String(x.dateKey)===String(selectedDate)):schedule;
-  $('schedule').innerHTML='';
-  if(!items.length){$('schedule').innerHTML='<div class="empty">На выбранную дату пар нет.</div>';return}
-  const title=document.createElement('div');title.className='dayheader';title.textContent=items[0].day;$('schedule').appendChild(title);
-  for(const x of items){const el=document.createElement('div');el.className='lesson';el.innerHTML='<div class="time">'+escapeHtml(x.time||'Время не указано')+'</div><div class="name">'+escapeHtml(x.lesson)+'</div>'+(x.room?'<div class="room">Кабинет: '+escapeHtml(x.room)+'</div>':'');$('schedule').appendChild(el)}
-  $('meta').textContent=selectedGroup+' • '+items.length+' занятий';
+
+
+function formatDateRu(key) {
+
+    const date = parseDateKey(key);
+
+    if (!date) {
+        return key;
+    }
+
+    const weekdays = [
+        "Вс",
+        "Пн",
+        "Вт",
+        "Ср",
+        "Чт",
+        "Пт",
+        "Сб"
+    ];
+
+    return (
+        weekdays[date.getDay()] +
+        " " +
+        pad(date.getDate()) +
+        "." +
+        pad(date.getMonth() + 1) +
+        "." +
+        date.getFullYear()
+    );
 }
-function syncNow(){if(syncRunning)return;syncRunning=true;setStatus('Обновляю расписание…');try{Android.sync()}catch(e){syncRunning=false;setStatus(e.message||'Ошибка',true)}}
-function openSource(){try{Android.openSource()}catch(e){location.href=publicSource}}
-function goCalendar(){alert('Календарь будет использовать те же сохранённые данные расписания.')}
-function showSettings(){alert('Настройки: автоматическое обновление выполняется по воскресеньям, расписание хранится на устройстве для офлайн-работы.')}
-window.onNativeFiles=function(json,status){try{files=JSON.parse(json);syncRunning=false;buildData();setStatus(status||'Расписание обновлено');}catch(e){syncRunning=false;setStatus('Ошибка обработки расписания',true);debug(e.stack||e)}}
-window.onNativeError=function(msg){syncRunning=false;setStatus(msg||'Ошибка обновления',true)}
-window.addEventListener('load',function(){try{Android.loadCached()}catch(e){setStatus('Нет сохранённого расписания',true)}setTimeout(function(){try{Android.sync()}catch(e){}},900)})
+
+
+function formatShortDate(key) {
+
+    const date = parseDateKey(key);
+
+    if (!date) {
+        return key;
+    }
+
+    return (
+        pad(date.getDate()) +
+        "." +
+        pad(date.getMonth() + 1)
+    );
+}
+
+
+function monthName(month) {
+
+    const names = [
+        "Январь",
+        "Февраль",
+        "Март",
+        "Апрель",
+        "Май",
+        "Июнь",
+        "Июль",
+        "Август",
+        "Сентябрь",
+        "Октябрь",
+        "Ноябрь",
+        "Декабрь"
+    ];
+
+    return names[month];
+}
+
+
+function inferYearFromFileName(name) {
+
+    const text = clean(name);
+
+    let match =
+        text.match(
+            /(?:^|[^\d])((?:19|20)\d{2})(?:[^\d]|$)/
+        );
+
+    if (match) {
+        return Number(match[1]);
+    }
+
+    /*
+     * Формат вроде:
+     * РАСПИСАНИЯ. ДЕНЬ. МЕС. ГОД
+     *
+     * Также пробуем найти дату dd.mm.yyyy.
+     */
+    match =
+        text.match(
+            /(\d{1,2})[.\-_](\d{1,2})[.\-_]((?:19|20)\d{2})/
+        );
+
+    if (match) {
+        return Number(match[3]);
+    }
+
+    return new Date().getFullYear();
+}
+
+
+function excelSerialToDate(value) {
+
+    if (
+        typeof value !== "number" ||
+        !isFinite(value)
+    ) {
+        return null;
+    }
+
+    /*
+     * Excel serial date.
+     */
+    const utc =
+        Math.round(
+            (value - 25569) *
+            86400 *
+            1000
+        );
+
+    const date =
+        new Date(utc);
+
+    if (
+        isNaN(date.getTime())
+    ) {
+        return null;
+    }
+
+    return new Date(
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        date.getUTCDate()
+    );
+}
+
+
+function parseDateValue(value, fallbackYear) {
+
+    if (
+        value instanceof Date &&
+        !isNaN(value.getTime())
+    ) {
+
+        return new Date(
+            value.getFullYear(),
+            value.getMonth(),
+            value.getDate()
+        );
+    }
+
+    if (typeof value === "number") {
+
+        return excelSerialToDate(value);
+    }
+
+    const text =
+        clean(value);
+
+    if (!text) {
+        return null;
+    }
+
+    /*
+     * Убираем день недели:
+     *
+     * ПН 14.09
+     * ВТ 15.09.2026
+     */
+    const normalized =
+        text
+            .replace(
+                /^(пн|вт|ср|чт|пт|сб|вс)\s*/i,
+                ""
+            )
+            .trim();
+
+    let match =
+        normalized.match(
+            /^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})/
+        );
+
+    if (match) {
+
+        return new Date(
+            Number(match[3]),
+            Number(match[2]) - 1,
+            Number(match[1])
+        );
+    }
+
+    match =
+        normalized.match(
+            /^(\d{1,2})[.\-/](\d{1,2})/
+        );
+
+    if (match) {
+
+        return new Date(
+            fallbackYear,
+            Number(match[2]) - 1,
+            Number(match[1])
+        );
+    }
+
+    /*
+     * Иногда SheetJS возвращает строку даты
+     * в другом формате.
+     */
+    const generic =
+        new Date(text);
+
+    if (
+        !isNaN(generic.getTime())
+    ) {
+
+        return new Date(
+            generic.getFullYear(),
+            generic.getMonth(),
+            generic.getDate()
+        );
+    }
+
+    return null;
+}
+
+
+function formatTime(value) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+        return "";
+    }
+
+    if (value instanceof Date) {
+
+        return (
+            pad(value.getHours()) +
+            ":" +
+            pad(value.getMinutes())
+        );
+    }
+
+    if (typeof value === "number") {
+
+        /*
+         * Excel время — доля суток.
+         */
+        if (
+            value >= 0 &&
+            value < 1
+        ) {
+
+            const totalMinutes =
+                Math.round(
+                    value * 24 * 60
+                );
+
+            const hours =
+                Math.floor(
+                    totalMinutes / 60
+                );
+
+            const minutes =
+                totalMinutes % 60;
+
+            return (
+                pad(hours) +
+                ":" +
+                pad(minutes)
+            );
+        }
+    }
+
+    const text =
+        clean(value);
+
+    const match =
+        text.match(
+            /(\d{1,2})\s*[:.]\s*(\d{2})/
+        );
+
+    if (match) {
+
+        return (
+            pad(Number(match[1])) +
+            ":" +
+            match[2]
+        );
+    }
+
+    return text;
+}
+
+
+function isGroupName(value) {
+
+    const text =
+        clean(value);
+
+    if (!text) {
+        return false;
+    }
+
+    const lower =
+        normalize(text);
+
+    if (
+        lower === "каб" ||
+        lower.includes("на базе")
+    ) {
+        return false;
+    }
+
+    /*
+     * Все реальные группы в используемом Excel
+     * начинаются с цифры:
+     *
+     * 10 м/с
+     * 14-п лаб
+     * 10 класс
+     * 11 класс
+     * и т.д.
+     */
+    return /^\d/.test(text);
+}
+
+
+function isLectureSheet(sheetName) {
+
+    const name =
+        normalize(sheetName);
+
+    return (
+        name === "лекции" ||
+        name.includes("лекци")
+    );
+}
+
+
+/* =========================================================
+   ПОИСК ГРУПП
+   ========================================================= */
+
+function findGroupsInSheet(rows) {
+
+    const result = [];
+
+    /*
+     * Группы находятся в первых строках.
+     * Из-за объединённых ячеек нельзя смотреть
+     * только одну строку.
+     */
+    const maxRows =
+        Math.min(
+            rows.length,
+            6
+        );
+
+    for (
+        let rowIndex = 0;
+        rowIndex < maxRows;
+        rowIndex++
+    ) {
+
+        const row =
+            rows[rowIndex] || [];
+
+        for (
+            let column = 0;
+            column < row.length;
+            column++
+        ) {
+
+            const value =
+                clean(row[column]);
+
+            if (
+                !isGroupName(value)
+            ) {
+                continue;
+            }
+
+            /*
+             * Не добавляем одинаковые группы.
+             */
+            if (
+                result.some(
+                    item =>
+                        item.name === value
+                )
+            ) {
+                continue;
+            }
+
+            result.push({
+                name: value,
+                column: column
+            });
+        }
+    }
+
+    return result;
+}
+
+
+/* =========================================================
+   ПАРСИНГ ЛИСТА ЛЕКЦИЙ
+   ========================================================= */
+
+function parseLectureSheet(
+    sheet,
+    fileName
+) {
+
+    const rows =
+        XLSX.utils.sheet_to_json(
+            sheet,
+            {
+                header: 1,
+                defval: "",
+                raw: true
+            }
+        );
+
+    if (
+        !rows ||
+        !rows.length
+    ) {
+        return [];
+    }
+
+    const groups =
+        findGroupsInSheet(rows);
+
+    if (!groups.length) {
+        return [];
+    }
+
+    const fallbackYear =
+        inferYearFromFileName(
+            fileName
+        );
+
+    const lessons = [];
+
+    let currentDate = null;
+
+    /*
+     * Данные начинаются после заголовка.
+     * Но начинаем с 0, потому что пропуск
+     * пустых строк/нестандартных заголовков
+     * безопаснее делать по содержимому.
+     */
+    for (
+        let rowIndex = 0;
+        rowIndex < rows.length;
+        rowIndex++
+    ) {
+
+        const row =
+            rows[rowIndex] || [];
+
+        /*
+         * Колонка A — день/дата.
+         *
+         * В Excel ячейка может быть объединена
+         * вертикально, поэтому следующие строки
+         * содержат пустое A.
+         *
+         * Поэтому запоминаем последнюю дату.
+         */
+        const possibleDate =
+            parseDateValue(
+                row[0],
+                fallbackYear
+            );
+
+        if (possibleDate) {
+            currentDate =
+                dateKey(
+                    possibleDate.getFullYear(),
+                    possibleDate.getMonth() + 1,
+                    possibleDate.getDate()
+                );
+        }
+
+        /*
+         * Колонка B — время.
+         */
+        const time =
+            formatTime(row[1]);
+
+        /*
+         * Строки без даты и времени
+         * не являются занятиями.
+         */
+        if (
+            !currentDate ||
+            !time
+        ) {
+            continue;
+        }
+
+        groups.forEach(group => {
+
+            const lesson =
+                clean(
+                    row[group.column]
+                );
+
+            if (!lesson) {
+                return;
+            }
+
+            /*
+             * Не считаем "каб" уроком.
+             */
+            if (
+                normalize(lesson) === "каб"
+            ) {
+                return;
+            }
+
+            /*
+             * Слева от группы находится кабинет.
+             */
+            let room = "";
+
+            if (
+                group.column > 0
+            ) {
+
+                room =
+                    clean(
+                        row[group.column - 1]
+                    );
+            }
+
+            /*
+             * Иногда в комнате могут находиться
+             * служебные значения.
+             */
+            if (
+                normalize(room) === "каб"
+            ) {
+                room = "";
+            }
+
+            lessons.push({
+                date: currentDate,
+                group: group.name,
+                time: time,
+                lesson: lesson,
+                room: room,
+                file: fileName
+            });
+        });
+    }
+
+    return lessons;
+}
+
+
+/* =========================================================
+   ПАРСИНГ EXCEL-ФАЙЛА
+   ========================================================= */
+
+function parseXlsxFile(
+    file
+) {
+
+    try {
+
+        const workbook =
+            XLSX.read(
+                file.data,
+                {
+                    type: "base64",
+                    cellDates: true
+                }
+            );
+
+        const result = [];
+
+        workbook.SheetNames.forEach(
+            sheetName => {
+
+                if (
+                    !isLectureSheet(
+                        sheetName
+                    )
+                ) {
+                    return;
+                }
+
+                const sheet =
+                    workbook.Sheets[
+                        sheetName
+                    ];
+
+                const lessons =
+                    parseLectureSheet(
+                        sheet,
+                        file.name
+                    );
+
+                result.push(
+                    ...lessons
+                );
+            }
+        );
+
+        return result;
+
+    } catch (error) {
+
+        console.error(
+            "Ошибка чтения Excel:",
+            file.name,
+            error
+        );
+
+        return [];
+    }
+}
+
+
+/* =========================================================
+   ПОСТРОЕНИЕ БАЗЫ РАСПИСАНИЯ
+   ========================================================= */
+
+function buildData() {
+
+    state.data = {};
+
+    state.files.forEach(
+        file => {
+
+            const lessons =
+                parseXlsxFile(
+                    file
+                );
+
+            lessons.forEach(
+                lesson => {
+
+                    if (
+                        !state.data[
+                            lesson.date
+                        ]
+                    ) {
+
+                        state.data[
+                            lesson.date
+                        ] = {};
+                    }
+
+                    if (
+                        !state.data[
+                            lesson.date
+                        ][
+                            lesson.group
+                        ]
+                    ) {
+
+                        state.data[
+                            lesson.date
+                        ][
+                            lesson.group
+                        ] = [];
+                    }
+
+                    /*
+                     * Защита от дублей, если один
+                     * Excel содержит повторяющиеся строки.
+                     */
+                    const list =
+                        state.data[
+                            lesson.date
+                        ][
+                            lesson.group
+                        ];
+
+                    const duplicate =
+                        list.some(
+                            item =>
+                                item.time === lesson.time &&
+                                item.lesson === lesson.lesson &&
+                                item.room === lesson.room
+                        );
+
+                    if (!duplicate) {
+                        list.push(lesson);
+                    }
+                }
+            );
+        }
+    );
+
+    /*
+     * Список групп.
+     */
+    const groups =
+        new Set();
+
+    Object.values(
+        state.data
+    ).forEach(
+        dateGroups => {
+
+            Object.keys(
+                dateGroups
+            ).forEach(
+                group =>
+                    groups.add(group)
+            );
+        }
+    );
+
+    state.groups =
+        Array.from(groups)
+            .sort(
+                (a, b) =>
+                    a.localeCompare(
+                        b,
+                        "ru",
+                        {
+                            numeric: true
+                        }
+                    )
+            );
+
+    /*
+     * Список дат.
+     */
+    state.dates =
+        Object.keys(
+            state.data
+        ).sort();
+
+    /*
+     * Сортируем занятия.
+     */
+    state.dates.forEach(
+        date => {
+
+            Object.keys(
+                state.data[date]
+            ).forEach(
+                group => {
+
+                    state.data[date][group]
+                        .sort(
+                            (a, b) =>
+                                timeToMinutes(a.time) -
+                                timeToMinutes(b.time)
+                        );
+                }
+            );
+        }
+    );
+
+    updateGroupSelect();
+    updateDateSelect();
+    updateDays();
+    updateSchedule();
+    updateCalendar();
+    updateSettingsInfo();
+
+    /*
+     * Если выбранной группы больше нет —
+     * выбираем первую.
+     */
+    if (
+        !state.selectedGroup ||
+        !state.groups.includes(
+            state.selectedGroup
+        )
+    ) {
+
+        state.selectedGroup =
+            state.groups[0] || "";
+
+        updateGroupSelectValue();
+    }
+
+    /*
+     * Если выбранной даты больше нет —
+     * выбираем сегодня, если он есть,
+     * иначе первую дату.
+     */
+    if (
+        !state.selectedDate ||
+        !state.dates.includes(
+            state.selectedDate
+        )
+    ) {
+
+        const today =
+            new Date();
+
+        const todayKey =
+            dateKey(
+                today.getFullYear(),
+                today.getMonth() + 1,
+                today.getDate()
+            );
+
+        state.selectedDate =
+            state.dates.includes(
+                todayKey
+            )
+                ? todayKey
+                : (
+                    state.dates[0] ||
+                    ""
+                );
+    }
+
+    updateDateSelectValue();
+    updateDays();
+    updateSchedule();
+    updateCalendar();
+}
+
+
+/* =========================================================
+   ВРЕМЯ
+   ========================================================= */
+
+function timeToMinutes(value) {
+
+    const text =
+        clean(value);
+
+    const match =
+        text.match(
+            /^(\d{1,2})[:.](\d{2})/
+        );
+
+    if (!match) {
+        return 9999;
+    }
+
+    return (
+        Number(match[1]) * 60 +
+        Number(match[2])
+    );
+}
+
+
+/* =========================================================
+   ГРУППА
+   ========================================================= */
+
+function updateGroupSelect() {
+
+    const select =
+        document.getElementById(
+            "groupSelect"
+        );
+
+    select.innerHTML = "";
+
+    if (!state.groups.length) {
+
+        select.innerHTML =
+            '<option value="">Группы не найдены</option>';
+
+        document.getElementById(
+            "currentGroupLabel"
+        ).textContent = "";
+
+        return;
+    }
+
+    state.groups.forEach(
+        group => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value =
+                group;
+
+            option.textContent =
+                group;
+
+            select.appendChild(
+                option
+            );
+        }
+    );
+
+    updateGroupSelectValue();
+
+    document.getElementById(
+        "currentGroupLabel"
+    ).textContent =
+        state.selectedGroup || "";
+}
+
+
+function updateGroupSelectValue() {
+
+    const select =
+        document.getElementById(
+            "groupSelect"
+        );
+
+    if (
+        state.selectedGroup
+    ) {
+
+        select.value =
+            state.selectedGroup;
+    }
+}
+
+
+document.getElementById(
+    "groupSelect"
+).addEventListener(
+    "change",
+    function() {
+
+        state.selectedGroup =
+            this.value;
+
+        document.getElementById(
+            "currentGroupLabel"
+        ).textContent =
+            state.selectedGroup;
+
+        updateDays();
+        updateSchedule();
+        updateCalendar();
+        updateSettingsInfo();
+    }
+);
+
+
+/* =========================================================
+   ДАТА
+   ========================================================= */
+
+function updateDateSelect() {
+
+    const select =
+        document.getElementById(
+            "dateSelect"
+        );
+
+    select.innerHTML = "";
+
+    if (!state.dates.length) {
+
+        select.innerHTML =
+            '<option value="">Даты не найдены</option>';
+
+        return;
+    }
+
+    state.dates.forEach(
+        date => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value =
+                date;
+
+            option.textContent =
+                formatDateRu(
+                    date
+                );
+
+            select.appendChild(
+                option
+            );
+        }
+    );
+
+    updateDateSelectValue();
+}
+
+
+function updateDateSelectValue() {
+
+    const select =
+        document.getElementById(
+            "dateSelect"
+        );
+
+    if (
+        state.selectedDate
+    ) {
+
+        select.value =
+            state.selectedDate;
+    }
+}
+
+
+document.getElementById(
+    "dateSelect"
+).addEventListener(
+    "change",
+    function() {
+
+        state.selectedDate =
+            this.value;
+
+        updateDays();
+        updateSchedule();
+        updateCalendar();
+    }
+);
+
+
+/* =========================================================
+   ДНИ
+   ========================================================= */
+
+function updateDays() {
+
+    const container =
+        document.getElementById(
+            "dayList"
+        );
+
+    container.innerHTML = "";
+
+    if (
+        !state.selectedGroup
+    ) {
+
+        return;
+    }
+
+    /*
+     * Показываем даты, в которых
+     * есть занятия выбранной группы.
+     */
+    const groupDates =
+        state.dates.filter(
+            date =>
+                state.data[date] &&
+                state.data[date][
+                    state.selectedGroup
+                ] &&
+                state.data[date][
+                    state.selectedGroup
+                ].length > 0
+        );
+
+    if (!groupDates.length) {
+
+        container.innerHTML =
+            '<div class="empty" style="width:100%">Для этой группы даты не найдены</div>';
+
+        return;
+    }
+
+    groupDates.forEach(
+        date => {
+
+            const dateObj =
+                parseDateKey(date);
+
+            if (!dateObj) {
+                return;
+            }
+
+            const weekdays = [
+                "Вс",
+                "Пн",
+                "Вт",
+                "Ср",
+                "Чт",
+                "Пт",
+                "Сб"
+            ];
+
+            const button =
+                document.createElement(
+                    "button"
+                );
+
+            button.className =
+                "day-btn" +
+                (
+                    date === state.selectedDate
+                        ? " active"
+                        : ""
+                );
+
+            button.innerHTML =
+                "<small>" +
+                weekdays[
+                    dateObj.getDay()
+                ] +
+                "</small>" +
+                "<b>" +
+                formatShortDate(
+                    date
+                ) +
+                "</b>";
+
+            button.onclick =
+                function() {
+
+                    state.selectedDate =
+                        date;
+
+                    updateDateSelectValue();
+                    updateDays();
+                    updateSchedule();
+                    updateCalendar();
+                };
+
+            container.appendChild(
+                button
+            );
+        }
+    );
+}
+
+
+/* =========================================================
+   РАСПИСАНИЕ
+   ========================================================= */
+
+function updateSchedule() {
+
+    const container =
+        document.getElementById(
+            "schedule"
+        );
+
+    if (
+        !state.files.length
+    ) {
+
+        container.innerHTML =
+            '<div class="empty">' +
+            "Нет загруженных Excel-файлов.<br><br>" +
+            "Нажмите «Обновить» или загрузите Excel в Настройках." +
+            "</div>";
+
+        return;
+    }
+
+    if (
+        !state.selectedGroup ||
+        !state.selectedDate
+    ) {
+
+        container.innerHTML =
+            '<div class="empty">Выберите группу и дату.</div>';
+
+        return;
+    }
+
+    const lessons =
+        state.data[
+            state.selectedDate
+        ] &&
+        state.data[
+            state.selectedDate
+        ][
+            state.selectedGroup
+        ];
+
+    if (
+        !lessons ||
+        !lessons.length
+    ) {
+
+        container.innerHTML =
+            '<div class="empty">' +
+            "На " +
+            escapeHtml(
+                formatDateRu(
+                    state.selectedDate
+                )
+            ) +
+            " занятий нет." +
+            "</div>";
+
+        return;
+    }
+
+    container.innerHTML = "";
+
+    lessons.forEach(
+        lesson => {
+
+            const element =
+                document.createElement(
+                    "div"
+                );
+
+            element.className =
+                "lesson";
+
+            let room =
+                lesson.room
+                    ? "Кабинет: " +
+                        escapeHtml(
+                            lesson.room
+                        )
+                    : "Кабинет не указан";
+
+            element.innerHTML =
+                '<div class="lesson-time">' +
+                escapeHtml(
+                    lesson.time
+                ) +
+                "</div>" +
+
+                '<div>' +
+
+                '<div class="lesson-name">' +
+                escapeHtml(
+                    lesson.lesson
+                ) +
+                "</div>" +
+
+                '<div class="lesson-room">' +
+                room +
+                "</div>" +
+
+                "</div>";
+
+            container.appendChild(
+                element
+            );
+        }
+    );
+}
+
+
+/* =========================================================
+   КАЛЕНДАРЬ
+   ========================================================= */
+
+const weekdays =
+    [
+        "Пн",
+        "Вт",
+        "Ср",
+        "Чт",
+        "Пт",
+        "Сб",
+        "Вс"
+    ];
+
+
+function updateCalendar() {
+
+    const title =
+        document.getElementById(
+            "calendarTitle"
+        );
+
+    const grid =
+        document.getElementById(
+            "calendarGrid"
+        );
+
+    const weekdaysContainer =
+        document.getElementById(
+            "weekdays"
+        );
+
+    weekdaysContainer.innerHTML =
+        weekdays
+            .map(
+                day =>
+                    "<div class=\"weekday\">" +
+                    day +
+                    "</div>"
+            )
+            .join("");
+
+    const year =
+        state.calendarDate.getFullYear();
+
+    const month =
+        state.calendarDate.getMonth();
+
+    title.textContent =
+        monthName(month) +
+        " " +
+        year;
+
+    grid.innerHTML = "";
+
+    /*
+     * Первый день месяца.
+     *
+     * JS:
+     * Вс = 0
+     *
+     * Нам нужно:
+     * Пн = 0
+     */
+    const first =
+        new Date(
+            year,
+            month,
+            1
+        );
+
+    let start =
+        first.getDay() - 1;
+
+    if (start < 0) {
+        start = 6;
+    }
+
+    const daysInMonth =
+        new Date(
+            year,
+            month + 1,
+            0
+        ).getDate();
+
+    for (
+        let i = 0;
+        i < start;
+        i++
+    ) {
+
+        const empty =
+            document.createElement(
+                "button"
+            );
+
+        empty.className =
+            "calendar-day empty-day";
+
+        empty.disabled = true;
+
+        grid.appendChild(
+            empty
+        );
+    }
+
+    for (
+        let day = 1;
+        day <= daysInMonth;
+        day++
+    ) {
+
+        const key =
+            dateKey(
+                year,
+                month + 1,
+                day
+            );
+
+        const button =
+            document.createElement(
+                "button"
+            );
+
+        button.className =
+            "calendar-day";
+
+        button.textContent =
+            day;
+
+        if (
+            key === todayKey()
+        ) {
+
+            button.classList.add(
+                "today"
+            );
+        }
+
+        if (
+            key === state.calendarSelected ||
+            key === state.selectedDate
+        ) {
+
+            button.classList.add(
+                "selected"
+            );
+        }
+
+        if (
+            state.data[key]
+        ) {
+
+            if (
+                !state.selectedGroup ||
+                state.data[key][
+                    state.selectedGroup
+                ]
+            ) {
+
+                button.classList.add(
+                    "has-data"
+                );
+            }
+        }
+
+        button.onclick =
+            function() {
+
+                state.calendarSelected =
+                    key;
+
+                state.selectedDate =
+                    key;
+
+                state.calendarDate =
+                    new Date(
+                        year,
+                        month,
+                        day
+                    );
+
+                updateDateSelectValue();
+                updateDays();
+                updateSchedule();
+                updateCalendar();
+
+                document.getElementById(
+                    "calendarSelectedText"
+                ).textContent =
+                    formatDateRu(
+                        key
+                    );
+            };
+
+        grid.appendChild(
+            button
+        );
+    }
+
+    document.getElementById(
+        "calendarSelectedText"
+    ).textContent =
+        state.calendarSelected
+            ? formatDateRu(
+                state.calendarSelected
+            )
+            : (
+                state.selectedDate
+                    ? formatDateRu(
+                        state.selectedDate
+                    )
+                    : "Дата не выбрана"
+            );
+}
+
+
+function changeMonth(offset) {
+
+    state.calendarDate =
+        new Date(
+            state.calendarDate.getFullYear(),
+            state.calendarDate.getMonth() + offset,
+            1
+        );
+
+    updateCalendar();
+}
+
+
+function todayKey() {
+
+    const today =
+        new Date();
+
+    return dateKey(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        today.getDate()
+    );
+}
+
+
+function selectToday() {
+
+    const today =
+        todayKey();
+
+    /*
+     * Если сегодня есть в Excel —
+     * выбираем его.
+     *
+     * Если нет — всё равно показываем
+     * сегодняшнюю дату в календаре.
+     */
+    state.selectedDate =
+        today;
+
+    state.calendarSelected =
+        today;
+
+    const date =
+        parseDateKey(today);
+
+    if (date) {
+        state.calendarDate =
+            date;
+    }
+
+    updateDateSelectValue();
+    updateDays();
+    updateSchedule();
+    updateCalendar();
+
+    showPage("schedule");
+}
+
+
+function goToSelectedCalendarDate() {
+
+    if (
+        !state.calendarSelected
+    ) {
+
+        showMessage(
+            "Календарь",
+            "Сначала выберите дату."
+        );
+
+        return;
+    }
+
+    state.selectedDate =
+        state.calendarSelected;
+
+    updateDateSelectValue();
+    updateDays();
+    updateSchedule();
+
+    showPage("schedule");
+}
+
+
+/* =========================================================
+   СТРАНИЦЫ
+   ========================================================= */
+
+function showPage(page) {
+
+    const pages = {
+        schedule:
+            document.getElementById(
+                "schedulePage"
+            ),
+        calendar:
+            document.getElementById(
+                "calendarPage"
+            ),
+        settings:
+            document.getElementById(
+                "settingsPage"
+            )
+    };
+
+    Object.values(
+        pages
+    ).forEach(
+        element =>
+            element.classList.remove(
+                "active"
+            )
+    );
+
+    pages[page].classList.add(
+        "active"
+    );
+
+    document.querySelectorAll(
+        ".nav-btn"
+    ).forEach(
+        button =>
+            button.classList.remove(
+                "active"
+            )
+    );
+
+    if (page === "schedule") {
+
+        document.getElementById(
+            "navSchedule"
+        ).classList.add(
+            "active"
+        );
+
+    } else if (page === "calendar") {
+
+        document.getElementById(
+            "navCalendar"
+        ).classList.add(
+            "active"
+        );
+
+        updateCalendar();
+
+    } else {
+
+        document.getElementById(
+            "navSettings"
+        ).classList.add(
+            "active"
+        );
+
+        updateSettingsInfo();
+    }
+}
+
+
+/* =========================================================
+   НАСТРОЙКИ
+   ========================================================= */
+
+function updateSettingsInfo() {
+
+    document.getElementById(
+        "cachedCount"
+    ).textContent =
+        state.files.length;
+
+    document.getElementById(
+        "settingsGroups"
+    ).textContent =
+        state.groups.length;
+
+    document.getElementById(
+        "settingsDates"
+    ).textContent =
+        state.dates.length;
+}
+
+
+/* =========================================================
+   MAIL ОБЛАКО
+   ========================================================= */
+
+function syncCloud() {
+
+    if (
+        state.loading
+    ) {
+        return;
+    }
+
+    state.loading = true;
+
+    const button =
+        document.getElementById(
+            "refreshBtn"
+        );
+
+    button.disabled = true;
+    button.textContent =
+        "Загрузка...";
+
+    setStatus(
+        "Подключение к Mail Облаку..."
+    );
+
+    if (
+        window.Android &&
+        typeof Android.sync === "function"
+    ) {
+
+        Android.sync();
+
+    } else {
+
+        state.loading = false;
+        button.disabled = false;
+        button.textContent =
+            "Обновить";
+
+        setStatus(
+            "Android-интерфейс недоступен"
+        );
+    }
+}
+
+
+function loadOffline() {
+
+    setStatus(
+        "Открываю сохранённые Excel..."
+    );
+
+    if (
+        window.Android &&
+        typeof Android.loadCached === "function"
+    ) {
+
+        Android.loadCached();
+
+    } else {
+
+        setStatus(
+            "Android-интерфейс недоступен"
+        );
+    }
+}
+
+
+function openSource() {
+
+    if (
+        window.Android &&
+        typeof Android.openSource === "function"
+    ) {
+
+        Android.openSource();
+
+    } else {
+
+        showMessage(
+            "Mail Облако",
+            "Открытие Mail Облака доступно в Android-приложении."
+        );
+    }
+}
+
+
+function pickExcel() {
+
+    if (
+        window.Android &&
+        typeof Android.pickExcel === "function"
+    ) {
+
+        Android.pickExcel();
+
+    } else {
+
+        showMessage(
+            "Excel",
+            "Выбор файла доступен в Android-приложении."
+        );
+    }
+}
+
+
+/* =========================================================
+   CALLBACK ИЗ KOTLIN
+   ========================================================= */
+
+window.onNativeFiles =
+    function(
+        json,
+        status
+    ) {
+
+        try {
+
+            /*
+             * Kotlin передаёт JSON как строку,
+             * потому что она экранируется JSONObject.quote().
+             */
+            let parsed =
+                typeof json === "string"
+                    ? JSON.parse(json)
+                    : json;
+
+            if (
+                !Array.isArray(parsed)
+            ) {
+
+                throw new Error(
+                    "Неверный формат Excel-файлов"
+                );
+            }
+
+            state.files =
+                parsed.map(
+                    item => ({
+                        name:
+                            clean(
+                                item.name
+                            ),
+                        data:
+                            item.data
+                    })
+                );
+
+            buildData();
+
+            state.loading =
+                false;
+
+            const button =
+                document.getElementById(
+                    "refreshBtn"
+                );
+
+            button.disabled =
+                false;
+
+            button.textContent =
+                "Обновить";
+
+            setStatus(
+                status ||
+                "Расписание загружено"
+            );
+
+        } catch (error) {
+
+            console.error(
+                error
+            );
+
+            state.loading =
+                false;
+
+            const button =
+                document.getElementById(
+                    "refreshBtn"
+                );
+
+            button.disabled =
+                false;
+
+            button.textContent =
+                "Обновить";
+
+            setStatus(
+                "Ошибка обработки Excel"
+            );
+
+            showMessage(
+                "Ошибка Excel",
+                error.message ||
+                "Не удалось прочитать расписание."
+            );
+        }
+    };
+
+
+window.onNativeError =
+    function(
+        message
+    ) {
+
+        state.loading =
+            false;
+
+        const button =
+            document.getElementById(
+                "refreshBtn"
+            );
+
+        button.disabled =
+            false;
+
+        button.textContent =
+            "Обновить";
+
+        setStatus(
+            message ||
+            "Произошла ошибка"
+        );
+
+        showMessage(
+            "Ошибка",
+            message ||
+            "Не удалось выполнить операцию."
+        );
+    };
+
+
+/* =========================================================
+   СТАТУС
+   ========================================================= */
+
+function setStatus(
+    text
+) {
+
+    document.getElementById(
+        "status"
+    ).textContent =
+        clean(text);
+}
+
+
+/* =========================================================
+   ОКНО СООБЩЕНИЯ
+   ========================================================= */
+
+function showMessage(
+    title,
+    text
+) {
+
+    document.getElementById(
+        "messageTitle"
+    ).textContent =
+        title;
+
+    document.getElementById(
+        "messageText"
+    ).innerHTML =
+        escapeHtml(
+            text
+        ).replace(
+            /\n/g,
+            "<br>"
+        );
+
+    document.getElementById(
+        "messageModal"
+    ).classList.add(
+        "open"
+    );
+}
+
+
+function closeMessage(
+    event
+) {
+
+    if (
+        event &&
+        event.target &&
+        event.target.id !==
+            "messageModal"
+    ) {
+
+        return;
+    }
+
+    document.getElementById(
+        "messageModal"
+    ).classList.remove(
+        "open"
+    );
+}
+
+
+/* =========================================================
+   ЗАПУСК
+   ========================================================= */
+
+function startApp() {
+
+    /*
+     * Сначала пробуем локальные данные.
+     * Это позволяет открыть приложение
+     * без интернета.
+     */
+    if (
+        window.Android &&
+        typeof Android.loadCached === "function"
+    ) {
+
+        Android.loadCached();
+
+    } else {
+
+        setStatus(
+            "Ожидание Android..."
+        );
+    }
+
+    /*
+     * Через небольшую задержку пробуем
+     * автоматическое обновление.
+     *
+     * Если интернета нет, Kotlin вернёт
+     * локальную копию.
+     */
+    setTimeout(
+        function() {
+
+            if (
+                window.Android &&
+                typeof Android.sync === "function"
+            ) {
+
+                Android.sync();
+            }
+
+        },
+        1200
+    );
+}
+
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function() {
+
+        updateCalendar();
+        updateSettingsInfo();
+
+        setTimeout(
+            startApp,
+            100
+        );
+    }
+);
+
 </script>
+
 </body>
 </html>
