@@ -24,7 +24,10 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             val manager = AppWidgetManager.getInstance(context)
             val component = ComponentName(context, ScheduleWidgetProvider::class.java)
             val ids = manager.getAppWidgetIds(component)
-            if (ids.isNotEmpty()) updateAll(context, manager, ids)
+            if (ids.isNotEmpty()) {
+                val provider = ScheduleWidgetProvider()
+                provider.updateAll(context, manager, ids)
+            }
         }
 
         fun saveAndRefresh(context: Context, json: String, accent: String?) {
@@ -36,46 +39,6 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
                 }
                 .apply()
             refresh(context)
-        }
-
-        private fun updateAll(context: Context, manager: AppWidgetManager, ids: IntArray) {
-            ids.forEach { id ->
-                manager.updateAppWidget(id, buildViews(context))
-            }
-        }
-
-        private fun buildViews(context: Context): RemoteViews {
-            val views = RemoteViews(context.packageName, R.layout.widget_schedule)
-            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            val accent = parseColor(prefs.getString(KEY_ACCENT, "#A66CFF"), Color.rgb(166, 108, 255))
-            val json = prefs.getString(KEY_JSON, "[]") ?: "[]"
-            val data = WidgetDataParser.parse(json)
-
-            views.setTextColor(R.id.widget_group, accent)
-            views.setTextColor(R.id.widget_title, Color.WHITE)
-            views.setTextColor(R.id.widget_meta, Color.rgb(170, 163, 176))
-            views.setTextColor(R.id.widget_progress_text, accent)
-            views.setTextColor(R.id.widget_next, Color.rgb(205, 198, 209))
-            views.setInt(R.id.widget_progress, "setProgressTint", accent)
-
-            views.setTextViewText(R.id.widget_group, data.groupLabel)
-            views.setTextViewText(R.id.widget_title, data.title)
-            views.setTextViewText(R.id.widget_meta, data.meta)
-            views.setTextViewText(R.id.widget_progress_text, data.progressText)
-            views.setTextViewText(R.id.widget_next, data.nextText)
-            views.setProgressBar(R.id.widget_progress, 100, data.progress, false)
-
-            val intent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-            val pending = PendingIntent.getActivity(
-                context,
-                701,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag()
-            )
-            views.setOnClickPendingIntent(R.id.widget_root, pending)
-            return views
         }
 
         private fun immutableFlag(): Int =
@@ -94,12 +57,18 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
 
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
-        refresh(context)
+        updateAll(
+            context,
+            AppWidgetManager.getInstance(context),
+            AppWidgetManager.getInstance(context)
+                .getAppWidgetIds(ComponentName(context, ScheduleWidgetProvider::class.java))
+        )
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == Intent.ACTION_TIME_CHANGED ||
+        if (
+            intent.action == Intent.ACTION_TIME_CHANGED ||
             intent.action == Intent.ACTION_TIMEZONE_CHANGED ||
             intent.action == Intent.ACTION_DATE_CHANGED
         ) {
@@ -108,7 +77,42 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
     }
 
     private fun updateAll(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        ids.forEach { manager.updateAppWidget(it, buildViews(context)) }
+        ids.forEach { id ->
+            manager.updateAppWidget(id, buildViews(context))
+        }
+    }
+
+    private fun buildViews(context: Context): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.widget_schedule)
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val accent = parseColor(prefs.getString(KEY_ACCENT, "#A66CFF"), Color.rgb(166, 108, 255))
+        val json = prefs.getString(KEY_JSON, "[]") ?: "[]"
+        val data = WidgetDataParser.parse(json)
+
+        views.setTextColor(R.id.widget_group, accent)
+        views.setTextColor(R.id.widget_title, Color.WHITE)
+        views.setTextColor(R.id.widget_meta, Color.rgb(170, 163, 176))
+        views.setTextColor(R.id.widget_progress_text, accent)
+        views.setTextColor(R.id.widget_next, Color.rgb(205, 198, 209))
+
+        views.setTextViewText(R.id.widget_group, data.groupLabel)
+        views.setTextViewText(R.id.widget_title, data.title)
+        views.setTextViewText(R.id.widget_meta, data.meta)
+        views.setTextViewText(R.id.widget_progress_text, data.progressText)
+        views.setTextViewText(R.id.widget_next, data.nextText)
+        views.setProgressBar(R.id.widget_progress, 100, data.progress, false)
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pending = PendingIntent.getActivity(
+            context,
+            701,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag()
+        )
+        views.setOnClickPendingIntent(R.id.widget_root, pending)
+        return views
     }
 }
 
@@ -165,10 +169,11 @@ private object WidgetDataParser {
             )
         }
 
-        val nowMinutes = Calendar.getInstance().let { it.get(Calendar.HOUR_OF_DAY) * 60 + it.get(Calendar.MINUTE) }
-        val currentIndex = todayLessons.indexOfFirst { it.time.let(::toMinutes) > nowMinutes } - 1
-        val current = currentIndex.takeIf { it >= 0 }?.let { todayLessons[it] }
+        val nowMinutes = Calendar.getInstance().let {
+            it.get(Calendar.HOUR_OF_DAY) * 60 + it.get(Calendar.MINUTE)
+        }
         val next = todayLessons.firstOrNull { toMinutes(it.time) > nowMinutes }
+        val current = todayLessons.lastOrNull { toMinutes(it.time) <= nowMinutes }
 
         return if (current != null && nowMinutes < toMinutes(current.time) + 90) {
             val elapsed = (nowMinutes - toMinutes(current.time)).coerceAtLeast(0)
@@ -213,9 +218,10 @@ private object WidgetDataParser {
     private fun formatCountdown(now: Int, target: Int): String {
         var delta = target - now
         if (delta < 0) delta += 24 * 60
-        return when {
-            delta >= 60 -> "${delta / 60} ч ${delta % 60} мин"
-            else -> "$delta мин"
+        return if (delta >= 60) {
+            "${delta / 60} ч ${delta % 60} мин"
+        } else {
+            "$delta мин"
         }
     }
 }
