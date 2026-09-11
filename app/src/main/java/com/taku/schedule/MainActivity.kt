@@ -116,6 +116,11 @@ class MainActivity : AppCompatActivity() {
                             addScript('scheduleCustomizationScript', './customization.js');
                             addScript('scheduleRemindersScript', './reminders.js');
                             addScript('schedulePerformanceScript', './performance.js');
+                            document.querySelectorAll('p,h3,button').forEach(function(el){
+                                if (el.textContent === 'Mail Облако • автоматическая синхронизация') el.textContent = 'КМК • автоматическая синхронизация';
+                                else if (el.textContent === 'Mail Облако') el.textContent = 'КМК';
+                                else if (el.textContent === 'Открыть Mail Облако') el.textContent = 'Открыть источник КМК';
+                            });
                         })();
                         """.trimIndent(),
                         null
