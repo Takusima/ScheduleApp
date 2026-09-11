@@ -17,6 +17,7 @@ function setLoadingDone(status) {
 }
 function failExcel(message) {
   workerBusy = false; pendingFiles = []; pendingLessons = [];
+  window.__scheduleFilesForApply = null;
   setLoadingDone('Ошибка обработки Excel');
   if (typeof showMessage === 'function') showMessage('Ошибка Excel', message || 'Не удалось прочитать расписание.');
 }
@@ -135,7 +136,12 @@ window.onNativeFiles = function(json, status) {
   if (!parsed.every(x => x && x.name && x.data)) { failExcel('Excel-файл пустой или повреждён.'); return; }
   const worker = ensureWorker();
   if (!worker) { if(typeof originalOnNativeFiles==='function') originalOnNativeFiles(json,status); return; }
-  workerBusy=true; pendingFiles=parsed.slice(); pendingLessons=[]; pendingStatus=status || 'Расписание загружено'; pendingNotify=String(status||'').indexOf('Расписание обновлено')===0;
+  workerBusy=true;
+  pendingFiles=parsed.slice();
+  window.__scheduleFilesForApply = parsed.slice();
+  pendingLessons=[];
+  pendingStatus=status || 'Расписание загружено';
+  pendingNotify=String(status||'').indexOf('Расписание обновлено')===0;
   processNextFile();
 };
 window.addEventListener('scheduleapp:data-ready', () => { setTimeout(() => { if(typeof decorateLessons==='function') decorateLessons(); }, 0); });
