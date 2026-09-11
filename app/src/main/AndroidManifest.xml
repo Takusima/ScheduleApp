@@ -7,7 +7,9 @@
 
     <application
         android:theme="@style/AppTheme"
-        android:label="Расписание"
+        android:label="Расписание КМК"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:usesCleartextTraffic="false"
         android:hardwareAccelerated="true">
 
@@ -21,21 +23,11 @@
             </intent-filter>
         </activity>
 
-        <receiver
-            android:name=".WeeklySyncReceiver"
-            android:exported="false" />
+        <receiver android:name=".WeeklySyncReceiver" android:exported="false" />
+        <receiver android:name=".NewYearReceiver" android:exported="false" />
+        <receiver android:name=".LessonReminderReceiver" android:exported="false" />
 
-        <receiver
-            android:name=".NewYearReceiver"
-            android:exported="false" />
-
-        <receiver
-            android:name=".LessonReminderReceiver"
-            android:exported="false" />
-
-        <receiver
-            android:name=".BootReceiver"
-            android:exported="false">
+        <receiver android:name=".BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
