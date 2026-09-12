@@ -24,6 +24,18 @@ android {
         jvmTarget = "17"
     }
 
+    signingConfigs {
+        create("releaseEnv") {
+            val storeFilePath = System.getenv("RELEASE_KEYSTORE_PATH")
+            if (!storeFilePath.isNullOrBlank()) {
+                storeFile = file(storeFilePath)
+                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isDebuggable = true
@@ -32,7 +44,12 @@ android {
         release {
             isMinifyEnabled = false
             isDebuggable = false
-            signingConfig = signingConfigs.getByName("debug")
+            val hasReleaseSigning = !System.getenv("RELEASE_KEYSTORE_PATH").isNullOrBlank()
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("releaseEnv")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
