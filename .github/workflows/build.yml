@@ -7,6 +7,9 @@ on:
 
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Android APK
@@ -67,9 +70,19 @@ jobs:
       - name: Rename APK
         run: cp app/build/outputs/apk/release/app-release.apk ScheduleApp-release.apk
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: ScheduleApp-release
           path: ScheduleApp-release.apk
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="release-${{ github.run_number }}"
+          gh release create "$TAG" ScheduleApp-release.apk \
+            --title "ScheduleApp Release ${{ github.run_number }}" \
+            --notes "Готовая версия ScheduleApp. APK можно скачать напрямую из раздела Releases." \
+            --latest
