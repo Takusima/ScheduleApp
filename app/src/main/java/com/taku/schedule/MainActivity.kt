@@ -23,15 +23,20 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
-
     private lateinit var web: WebView
     private lateinit var assetLoader: WebViewAssetLoader
     private val servedScheduleFiles = ConcurrentHashMap<String, File>()
     private val localScheduleBaseUrl = "https://appassets.androidplatform.net/schedule"
+    private val backgroundDir by lazy { File(filesDir, "schedule_background") }
 
     private val openExcel = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNullOrEmpty()) return@registerForActivityResult
         importSelectedFiles(uris)
+    }
+
+    private val openBackground = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@registerForActivityResult
+        importBackground(uri)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -40,6 +45,7 @@ class MainActivity : AppCompatActivity() {
         ScheduleSync.scheduleNextSunday(this)
         ScheduleSync.scheduleNextNewYear(this)
         LessonReminderScheduler.restore(this)
+        backgroundDir.mkdirs()
 
         assetLoader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
@@ -60,6 +66,23 @@ class MainActivity : AppCompatActivity() {
                     null
                 }
             })
+            .addPathHandler("/background/", WebViewAssetLoader.PathHandler { path ->
+                val name = path.trim('/')
+                if (name != "current") return@PathHandler null
+                val file = File(backgroundDir, "current")
+                if (!file.exists() || !file.isFile || file.length() <= 0L) return@PathHandler null
+                val mime = when (file.extension.lowercase()) {
+                    "gif" -> "image/gif"
+                    "webp" -> "image/webp"
+                    "png" -> "image/png"
+                    else -> "image/jpeg"
+                }
+                try {
+                    WebResourceResponse(mime, null, file.inputStream())
+                } catch (_: Exception) {
+                    null
+                }
+            })
             .build()
 
         web = WebView(this).apply {
@@ -73,28 +96,15 @@ class MainActivity : AppCompatActivity() {
             settings.displayZoomControls = false
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClientCompat() {
-                override fun shouldInterceptRequest(
-                    view: WebView,
-                    request: WebResourceRequest
-                ): WebResourceResponse? {
-                    return assetLoader.shouldInterceptRequest(request.url)
-                }
+                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+                    assetLoader.shouldInterceptRequest(request.url)
 
-                override fun shouldOverrideUrlLoading(
-                    view: WebView?,
-                    request: WebResourceRequest
-                ): Boolean {
+                override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest): Boolean {
                     val uri = request.url
-                    val isTelegram =
-                        uri.scheme.equals("tg", ignoreCase = true) ||
-                            (uri.scheme.equals("https", ignoreCase = true) &&
-                                uri.host.equals("t.me", ignoreCase = true))
-
+                    val isTelegram = uri.scheme.equals("tg", true) ||
+                        (uri.scheme.equals("https", true) && uri.host.equals("t.me", true))
                     if (isTelegram) {
-                        try {
-                            startActivity(Intent(Intent.ACTION_VIEW, uri))
-                        } catch (_: Exception) {
-                        }
+                        try { startActivity(Intent(Intent.ACTION_VIEW, uri)) } catch (_: Exception) {}
                         return true
                     }
                     return false
@@ -117,14 +127,14 @@ class MainActivity : AppCompatActivity() {
                             addScript('scheduleRemindersScript', './reminders.js');
                             addScript('schedulePerformanceScript', './performance.js');
                             addScript('scheduleExtrasScript', './schedule_extras.js');
+                            addScript('scheduleCustomFeaturesScript', './custom_features.js');
                             document.querySelectorAll('p,h3,button').forEach(function(el){
                                 if (el.textContent === 'Mail Облако • автоматическая синхронизация') el.textContent = 'КМК • автоматическая синхронизация';
                                 else if (el.textContent === 'Mail Облако') el.textContent = 'КМК';
                                 else if (el.textContent === 'Открыть Mail Облако') el.textContent = 'Открыть источник КМК';
                             });
                         })();
-                        """.trimIndent(),
-                        null
+                        """.trimIndent(), null
                     )
                 }
             }
@@ -145,202 +155,141 @@ class MainActivity : AppCompatActivity() {
 
     inner class Bridge {
         @JavascriptInterface
-        fun sync() {
+        fun sync() { thread { try {
+            if (!isOnline()) {
+                val cached = ScheduleFileSelector.select(ScheduleRepository.readCachedFiles(this@MainActivity))
+                if (cached.isNotEmpty()) sendFiles(cached, "Нет интернета • используется расписание на текущую дату")
+                else sendError("Нет интернета и ещё нет сохранённого Excel-файла")
+                return@thread
+            }
+            val files = MailCloudDownloader.download(this@MainActivity)
+            val selected = ScheduleFileSelector.select(files)
+            sendFiles(selected, "Расписание загружено • выбрана неделя по текущей дате")
+        } catch (e: Exception) {
+            val cached = ScheduleFileSelector.select(ScheduleRepository.readCachedFiles(this@MainActivity))
+            if (cached.isNotEmpty()) sendFiles(cached, "Не удалось обновить • используется сохранённая неделя")
+            else sendError(e.message ?: "Не удалось загрузить расписание")
+        } } }
+
+        @JavascriptInterface
+        fun loadCached() { thread { try {
+            val files = ScheduleFileSelector.select(ScheduleRepository.readCachedFiles(this@MainActivity))
+            if (files.isEmpty()) sendError("Сохранённого расписания пока нет")
+            else sendFiles(files, "Сохранённое расписание • выбрана неделя по дате")
+        } catch (e: Exception) { sendError(e.message ?: "Не удалось открыть сохранённое расписание") } } }
+
+        @JavascriptInterface
+        fun pickExcel() { runOnUiThread { openExcel.launch(arrayOf(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-excel"
+        )) } }
+
+        @JavascriptInterface
+        fun pickBackground() { runOnUiThread { openBackground.launch(arrayOf("image/*")) } }
+
+        @JavascriptInterface
+        fun clearBackground() {
             thread {
-                try {
-                    if (!isOnline()) {
-                        val cached = ScheduleFileSelector.select(
-                            ScheduleRepository.readCachedFiles(this@MainActivity)
-                        )
-                        if (cached.isNotEmpty()) {
-                            sendFiles(cached, "Нет интернета • используется расписание на текущую дату")
-                        } else {
-                            sendError("Нет интернета и ещё нет сохранённого Excel-файла")
-                        }
-                        return@thread
-                    }
-                    val files = MailCloudDownloader.download(this@MainActivity)
-                    val selected = ScheduleFileSelector.select(files)
-                    sendFiles(selected, "Расписание загружено • выбрана неделя по текущей дате")
-                } catch (e: Exception) {
-                    val cached = ScheduleFileSelector.select(
-                        ScheduleRepository.readCachedFiles(this@MainActivity)
-                    )
-                    if (cached.isNotEmpty()) {
-                        sendFiles(cached, "Не удалось обновить • используется сохранённая неделя")
-                    } else {
-                        sendError(e.message ?: "Не удалось загрузить расписание")
-                    }
-                }
+                try { File(backgroundDir, "current").delete() } catch (_: Exception) {}
+                runOnUiThread { web.evaluateJavascript("window.clearScheduleBackground&&window.clearScheduleBackground()", null) }
             }
         }
 
         @JavascriptInterface
-        fun loadCached() {
-            thread {
-                try {
-                    val files = ScheduleFileSelector.select(
-                        ScheduleRepository.readCachedFiles(this@MainActivity)
-                    )
-                    if (files.isEmpty()) {
-                        sendError("Сохранённого расписания пока нет")
-                    } else {
-                        sendFiles(files, "Сохранённое расписание • выбрана неделя по дате")
-                    }
-                } catch (e: Exception) {
-                    sendError(e.message ?: "Не удалось открыть сохранённое расписание")
-                }
+        fun openSource() { runOnUiThread { try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ScheduleRepository.PUBLIC_URL))) } catch (_: Exception) {} } }
+
+        @JavascriptInterface
+        fun openTelegram() { runOnUiThread {
+            val telegramUri = Uri.parse("tg://resolve?domain=takusima")
+            val webUri = Uri.parse("https://t.me/takusima")
+            try { startActivity(Intent(Intent.ACTION_VIEW, telegramUri)) } catch (_: Exception) {
+                try { startActivity(Intent(Intent.ACTION_VIEW, webUri)) } catch (_: Exception) {}
             }
-        }
+        } }
 
         @JavascriptInterface
-        fun pickExcel() {
-            runOnUiThread {
-                openExcel.launch(
-                    arrayOf(
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        "application/vnd.ms-excel"
-                    )
-                )
-            }
-        }
+        fun updateWidgetData(json: String, accent: String) { thread { try { ScheduleWidgetProvider.saveAndRefresh(this@MainActivity, json, accent) } catch (_: Exception) {} } }
 
         @JavascriptInterface
-        fun openSource() {
-            runOnUiThread {
-                try {
-                    startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse(ScheduleRepository.PUBLIC_URL)
-                        )
-                    )
-                } catch (_: Exception) {
-                }
-            }
-        }
+        fun getCachedCount(): Int = ScheduleRepository.readCachedFiles(this@MainActivity).size
 
         @JavascriptInterface
-        fun openTelegram() {
-            runOnUiThread {
-                val telegramUri = Uri.parse("tg://resolve?domain=takusima")
-                val webUri = Uri.parse("https://t.me/takusima")
-                try {
-                    startActivity(Intent(Intent.ACTION_VIEW, telegramUri))
-                } catch (_: Exception) {
-                    try {
-                        startActivity(Intent(Intent.ACTION_VIEW, webUri))
-                    } catch (_: Exception) {
-                    }
-                }
-            }
-        }
-
-        @JavascriptInterface
-        fun updateWidgetData(json: String, accent: String) {
-            thread {
-                try {
-                    ScheduleWidgetProvider.saveAndRefresh(this@MainActivity, json, accent)
-                } catch (_: Exception) {
-                }
-            }
-        }
-
-        @JavascriptInterface
-        fun getCachedCount(): Int =
-            ScheduleRepository.readCachedFiles(this@MainActivity).size
-
-        @JavascriptInterface
-        fun setLessonReminders(
-            enabled: Boolean,
-            minutes: Int,
-            group: String,
-            sound: String,
-            lessonsJson: String
-        ) {
-            LessonReminderScheduler.saveAndSchedule(
-                this@MainActivity,
-                enabled,
-                minutes,
-                group,
-                sound,
-                lessonsJson
-            )
+        fun setLessonReminders(enabled: Boolean, minutes: Int, group: String, sound: String, lessonsJson: String) {
+            LessonReminderScheduler.saveAndSchedule(this@MainActivity, enabled, minutes, group, sound, lessonsJson)
         }
     }
 
-    private fun importSelectedFiles(uris: List<Uri>) {
+    private fun importBackground(uri: Uri) {
         thread {
             try {
-                val files = ScheduleRepository.importExcelFiles(this@MainActivity, uris)
-                sendFiles(files, "Excel загружен • сохранено файлов: ${files.size}")
+                backgroundDir.mkdirs()
+                val name = queryDisplayName(uri)?.lowercase() ?: "background.jpg"
+                val ext = when {
+                    name.endsWith(".gif") -> "gif"
+                    name.endsWith(".webp") -> "webp"
+                    name.endsWith(".png") -> "png"
+                    else -> "jpg"
+                }
+                val tmp = File(backgroundDir, "background.tmp.$ext")
+                contentResolver.openInputStream(uri)?.use { input -> tmp.outputStream().use { output -> input.copyTo(output, 64 * 1024) } }
+                    ?: throw IllegalStateException("Не удалось прочитать изображение")
+                val current = File(backgroundDir, "current")
+                if (current.exists()) current.delete()
+                if (!tmp.renameTo(current)) tmp.copyTo(current, true).also { tmp.delete() }
+                val url = "https://appassets.androidplatform.net/background/current?v=${current.lastModified()}"
+                runOnUiThread { web.evaluateJavascript("window.setScheduleBackground&&window.setScheduleBackground(${JSONObject.quote(url)},${JSONObject.quote(name)})", null) }
             } catch (e: Exception) {
-                sendError(e.message ?: "Не удалось загрузить Excel")
+                sendError(e.message ?: "Не удалось установить фон")
             }
         }
     }
 
-    private fun sendFiles(files: List<File>, status: String) {
-        if (files.isEmpty()) {
-            sendError("Excel-файлы не найдены")
-            return
+    private fun queryDisplayName(uri: Uri): String? = try {
+        contentResolver.query(uri, null, null, null, null)?.use { c ->
+            val i = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (i >= 0 && c.moveToFirst()) c.getString(i) else null
         }
+    } catch (_: Exception) { null }
 
+    private fun importSelectedFiles(uris: List<Uri>) { thread { try {
+        val files = ScheduleRepository.importExcelFiles(this@MainActivity, uris)
+        sendFiles(files, "Excel загружен • сохранено файлов: ${files.size}")
+    } catch (e: Exception) { sendError(e.message ?: "Не удалось загрузить Excel") } } }
+
+    private fun sendFiles(files: List<File>, status: String) {
+        if (files.isEmpty()) { sendError("Excel-файлы не найдены"); return }
         while (servedScheduleFiles.size > 24) {
             val first = servedScheduleFiles.keys.firstOrNull() ?: break
             servedScheduleFiles.remove(first)
         }
-
         val result = JSONArray()
         files.forEach { file ->
             if (!file.exists() || !file.isFile || file.length() <= 0L) return@forEach
             val token = UUID.randomUUID().toString()
             servedScheduleFiles[token] = file
-            result.put(
-                JSONObject().apply {
-                    put("name", file.name)
-                    put("url", "$localScheduleBaseUrl/$token")
-                }
-            )
+            result.put(JSONObject().apply { put("name", file.name); put("url", "$localScheduleBaseUrl/$token") })
         }
-
-        if (result.length() == 0) {
-            sendError("Excel-файлы не найдены")
-            return
-        }
-
+        if (result.length() == 0) { sendError("Excel-файлы не найдены"); return }
         val json = result.toString()
         val js = """
             (function() {
                 var data = ${JSONObject.quote(json)};
                 var status = ${JSONObject.quote(status)};
-                if (window.__schedulePerformanceReady && typeof window.onNativeFiles === 'function') {
-                    window.onNativeFiles(data, status);
-                } else {
-                    window.__schedulePendingNativeFiles = { json: data, status: status };
-                }
+                if (window.__schedulePerformanceReady && typeof window.onNativeFiles === 'function') window.onNativeFiles(data, status);
+                else window.__schedulePendingNativeFiles = { json: data, status: status };
             })();
         """.trimIndent()
-
-        runOnUiThread {
-            if (::web.isInitialized) web.evaluateJavascript(js, null)
-        }
+        runOnUiThread { if (::web.isInitialized) web.evaluateJavascript(js, null) }
     }
 
     private fun sendError(message: String) {
         val js = """
             (function() {
-                if (window.__schedulePerformanceReady && typeof window.onNativeError === 'function') {
-                    window.onNativeError(${JSONObject.quote(message)});
-                } else {
-                    window.__schedulePendingNativeError = ${JSONObject.quote(message)};
-                }
+                if (window.__schedulePerformanceReady && typeof window.onNativeError === 'function') window.onNativeError(${JSONObject.quote(message)});
+                else window.__schedulePendingNativeError = ${JSONObject.quote(message)};
             })();
         """.trimIndent()
-
-        runOnUiThread {
-            if (::web.isInitialized) web.evaluateJavascript(js, null)
-        }
+        runOnUiThread { if (::web.isInitialized) web.evaluateJavascript(js, null) }
     }
 
     private fun isOnline(): Boolean {
