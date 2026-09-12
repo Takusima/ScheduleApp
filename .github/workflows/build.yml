@@ -27,6 +27,28 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Apply UI fixes
+        run: python3 tools/apply_ui_fixes.py
+
+      - name: Prepare release signing
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+            export RELEASE_KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
+            echo "RELEASE_KEYSTORE_PATH=$RELEASE_KEYSTORE_PATH" >> "$GITHUB_ENV"
+            echo "RELEASE_KEYSTORE_PASSWORD=$RELEASE_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "Release signing key found. Release APK will use the private release key."
+          else
+            echo "Release signing secrets are not configured yet. Building with the existing debug signing fallback."
+          fi
+
       - name: Build Release APK
         run: |
           gradle clean assembleRelease --stacktrace
@@ -39,18 +61,11 @@ jobs:
       - name: Verify APK
         run: |
           BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 -type d | sort -V | tail -n 1)
-
           echo "Using Android Build Tools: $BUILD_TOOLS"
-
-          "$BUILD_TOOLS/apksigner" verify \
-            --verbose \
-            app/build/outputs/apk/release/app-release.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
 
       - name: Rename APK
-        run: |
-          cp \
-            app/build/outputs/apk/release/app-release.apk \
-            ScheduleApp-release.apk
+        run: cp app/build/outputs/apk/release/app-release.apk ScheduleApp-release.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
