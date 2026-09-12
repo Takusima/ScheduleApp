@@ -4,8 +4,12 @@ const get=()=>{try{return JSON.parse(localStorage.getItem(K)||'{}')}catch(_){ret
 const style=document.createElement('style');
 style.textContent=`
 html,body,#app,.screen,#settingsPage{max-width:100%;overflow-x:hidden!important}
+body{overscroll-behavior-x:none}
 .screen{overscroll-behavior-x:none;scroll-behavior:smooth}
 #settingsPage{width:100%;min-width:0}
+#cf-bg{z-index:1!important;filter:var(--cf-bg-filter,none);transform:var(--cf-bg-transform,none)}
+#app{position:relative!important;z-index:2!important}
+#schedule-effects{z-index:997!important}.winter-atmosphere,#winter-atmosphere{z-index:998!important}
 html[data-cf-glass=true] .primary-btn,html[data-cf-glass=true] .secondary-btn,html[data-cf-glass=true] .wide-btn,html[data-cf-glass=true] .outline-btn,html[data-cf-glass=true] .day-btn,html[data-cf-glass=true] .nav-btn,html[data-cf-glass=true] .copt,html[data-cf-glass=true] .rem-opt,html[data-cf-glass=true] .sound-opt,html[data-cf-glass=true] .cf-btn{
 position:relative;isolation:isolate;overflow:hidden!important;
 background:linear-gradient(135deg,rgba(255,255,255,calc(var(--cf-op,.07) + .045)),rgba(255,255,255,var(--cf-op,.07)))!important;
@@ -28,5 +32,5 @@ html[data-uianim=soft] .screen-page,html[data-uianim=energetic] .screen-page{tra
 document.head.appendChild(style);
 function apply(){const g=get();const d=document.documentElement;d.dataset.cfGlass=!!g.enabled;d.style.setProperty('--cf-blur',Math.max(0,Math.min(40,+g.blur||20))+'px');d.style.setProperty('--cf-op',Math.max(.01,Math.min(.25,(+g.opacity||8)/100)));d.style.setProperty('--cf-br',Math.max(.01,Math.min(.35,(+g.border||16)/100)));d.style.setProperty('--cf-sat',Math.max(80,Math.min(220,+g.saturate||160))+'%');d.style.setProperty('--cf-gdur',Math.max(.15,Math.min(.9,(+g.duration||50)/100))+'s')}
 apply();
-let last=false;function observe(){const e=document.documentElement;if(e.dataset.cfGlass==='true'===last)return;last=e.dataset.cfGlass==='true';apply()}new MutationObserver(observe).observe(document.documentElement,{attributes:true,attributeFilter:['data-cf-glass']});
+let last='';function observe(){const e=document.documentElement;const v=e.dataset.cfGlass||'false';if(v===last)return;last=v;apply()}new MutationObserver(observe).observe(document.documentElement,{attributes:true,attributeFilter:['data-cf-glass']});
 })();
