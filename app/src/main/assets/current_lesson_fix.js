@@ -4,11 +4,16 @@
 const STYLE_ID = 'schedule-current-lesson-fix-style';
 const KEY = 'scheduleapp.currentLesson.v1';
 const PROGRESS_CLASS = 'lesson-progress';
+const VARS = [
+  '--current-accent','--current-accent-strong','--current-accent-soft',
+  '--current-accent-glow','--current-accent-glow-strong',
+  '--current-accent-inner','--current-accent-inner-strong',
+  '--current-accent-fill','--current-accent-fill-2'
+];
 
 function accentColor() {
   try {
-    const root = getComputedStyle(document.documentElement);
-    const cssAccent = root.getPropertyValue('--accent').trim();
+    const cssAccent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
     if (cssAccent) return cssAccent;
   } catch (_) {}
   try {
@@ -52,9 +57,6 @@ if (!document.getElementById(STYLE_ID)) {
       background:linear-gradient(135deg,var(--current-accent-fill),transparent 50%,var(--current-accent-fill-2));
     }
     .schedule-current-lesson-fix > * { position:relative; z-index:1; }
-    .schedule-current-lesson-fix .lesson-progress {
-      margin-top:7px;
-    }
     .schedule-current-lesson-fix .lesson-progress-fill {
       background:linear-gradient(90deg,var(--current-accent),var(--current-accent-strong))!important;
       box-shadow:0 0 10px var(--current-accent-soft)!important;
@@ -63,12 +65,8 @@ if (!document.getElementById(STYLE_ID)) {
       color:var(--current-accent)!important;
     }
     @keyframes scheduleCurrentGlow {
-      0%,100% {
-        box-shadow:0 0 0 1px var(--current-accent-soft),0 0 14px var(--current-accent-glow),inset 0 0 18px var(--current-accent-inner);
-      }
-      50% {
-        box-shadow:0 0 0 1px var(--current-accent),0 0 28px var(--current-accent-glow-strong),inset 0 0 26px var(--current-accent-inner-strong);
-      }
+      0%,100% { box-shadow:0 0 0 1px var(--current-accent-soft),0 0 14px var(--current-accent-glow),inset 0 0 18px var(--current-accent-inner); }
+      50% { box-shadow:0 0 0 1px var(--current-accent),0 0 28px var(--current-accent-glow-strong),inset 0 0 26px var(--current-accent-inner-strong); }
     }
   `;
   document.head.appendChild(style);
@@ -100,23 +98,32 @@ function applyAccent(card) {
 
 function getItems() {
   return Array.from(document.querySelectorAll('#schedulePage .lesson'))
-    .map(card => ({
-      card,
-      start: minutes(card.querySelector('.lesson-time')?.textContent?.trim())
-    }))
+    .map(card => ({ card, start: minutes(card.querySelector('.lesson-time')?.textContent?.trim()) }))
     .filter(x => Number.isFinite(x.start));
 }
 
 function currentItem(items) {
   if (typeof state === 'undefined' || state.selectedDate !== today()) return null;
-  const current = new Date().getHours() * 60 + new Date().getMinutes();
+  const now = new Date();
+  const currentMinute = now.getHours() * 60 + now.getMinutes();
   for (let i=0; i<items.length; i++) {
     const start = items[i].start;
     const next = items[i+1]?.start;
     const end = Number.isFinite(next) && next > start && next-start <= 100 ? next : start+90;
-    if (current >= start && current < end) return { ...items[i], end };
+    if (currentMinute >= start && currentMinute < end) return { ...items[i], end };
   }
   return null;
+}
+
+function ensureProgress(card) {
+  let box = card.querySelector('.' + PROGRESS_CLASS);
+  if (!box) {
+    box = document.createElement('div');
+    box.className = PROGRESS_CLASS;
+    box.innerHTML = '<div class="lesson-progress-head"><span>Прогресс пары</span><b>0%</b></div><div class="lesson-progress-track"><div class="lesson-progress-fill"></div></div>';
+    card.appendChild(box);
+  }
+  return box;
 }
 
 function updateProgress(items, current) {
@@ -125,42 +132,31 @@ function updateProgress(items, current) {
   const nowMinute = now.getHours() * 60 + now.getMinutes();
 
   items.forEach((item, index) => {
-    const card = item.card;
-    let box = card.querySelector('.' + PROGRESS_CLASS);
-    if (!box) {
-      box = document.createElement('div');
-      box.className = PROGRESS_CLASS;
-      box.innerHTML = '<div class="lesson-progress-head"><span>Прогресс пары</span><b>0%</b></div><div class="lesson-progress-track"><div class="lesson-progress-fill"></div></div>';
-      card.appendChild(box);
-    }
-
     const next = items[index + 1]?.start;
     const end = Number.isFinite(next) && next > item.start && next-item.start <= 100 ? next : item.start + 90;
+    const box = ensureProgress(item.card);
     const active = selectedToday && nowMinute >= item.start && nowMinute < end;
     box.style.display = active ? 'block' : 'none';
-    if (active) {
-      const pct = Math.max(0, Math.min(100, Math.round((nowMinute - item.start) / Math.max(1, end - item.start) * 100)));
-      const label = box.querySelector('.lesson-progress-head b');
-      const fill = box.querySelector('.lesson-progress-fill');
-      if (label) label.textContent = pct + '%';
-      if (fill) fill.style.width = pct + '%';
-    }
+    if (!active) return;
+    const pct = Math.max(0, Math.min(100, Math.round((nowMinute - item.start) / Math.max(1, end-item.start) * 100)));
+    const label = box.querySelector('.lesson-progress-head b');
+    const fill = box.querySelector('.lesson-progress-fill');
+    if (label) label.textContent = pct + '%';
+    if (fill) fill.style.width = pct + '%';
   });
 
   if (current) applyAccent(current.card);
 }
 
-function refresh() {
+function clearHighlight() {
   document.querySelectorAll('.schedule-current-lesson-fix').forEach(card => {
     card.classList.remove('schedule-current-lesson-fix');
-    [
-      '--current-accent','--current-accent-strong','--current-accent-soft',
-      '--current-accent-glow','--current-accent-glow-strong',
-      '--current-accent-inner','--current-accent-inner-strong',
-      '--current-accent-fill','--current-accent-fill-2'
-    ].forEach(name => card.style.removeProperty(name));
+    VARS.forEach(name => card.style.removeProperty(name));
   });
+}
 
+function refresh() {
+  clearHighlight();
   const items = getItems();
   if (!items.length) return;
 
@@ -175,36 +171,33 @@ function refresh() {
   applyAccent(current.card);
 }
 
-let refreshTimer = 0;
+let timer = 0;
 function scheduleRefresh(delay = 80) {
-  clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(refresh, delay);
+  clearTimeout(timer);
+  timer = setTimeout(refresh, delay);
 }
 
-window.addEventListener('scheduleapp:data-ready', () => scheduleRefresh(60));
+function refreshAfterDayOrGroup() {
+  scheduleRefresh(80);
+  setTimeout(refresh, 220);
+  setTimeout(refresh, 500);
+  setTimeout(refresh, 900);
+}
+
+window.addEventListener('scheduleapp:data-ready', refreshAfterDayOrGroup);
 document.addEventListener('click', event => {
-  if (event.target.closest?.('.day-btn, #groupSelect, .group-option, [data-group]')) scheduleRefresh(70);
+  if (event.target.closest?.('.day-btn, #groupSelect, .group-option, [data-group]')) refreshAfterDayOrGroup();
 }, true);
-
-const observer = new MutationObserver(() => scheduleRefresh(30));
-function observeSchedule() {
-  const page = document.getElementById('schedulePage');
-  if (page) observer.observe(page, { childList:true, subtree:true });
-}
 
 setInterval(refresh, 10000);
 setInterval(() => {
   const active = document.querySelector('.schedule-current-lesson-fix');
   if (active) applyAccent(active);
-}, 1500);
+}, 1000);
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    observeSchedule();
-    scheduleRefresh(400);
-  });
+  document.addEventListener('DOMContentLoaded', () => scheduleRefresh(500));
 } else {
-  observeSchedule();
-  scheduleRefresh(400);
+  scheduleRefresh(500);
 }
 })();
