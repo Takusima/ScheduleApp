@@ -2,15 +2,13 @@
 'use strict';
 
 const STYLE_ID = 'schedule-smooth-days-style';
-let protecting = false;
-let savedScroll = 0;
+let switchingDay = false;
 
 if (!document.getElementById(STYLE_ID)) {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
-    /* Мягкий переход между днями. Никаких snapshot/transform,
-       поэтому при прокрутке верх списка не вспыхивает. */
+    /* Плавный переход без snapshot/transform — не создаёт вспышек при прокрутке. */
     .schedule-list.cf-day {
       animation: scheduleDayFade 180ms ease-out !important;
       will-change: opacity !important;
@@ -21,7 +19,6 @@ if (!document.getElementById(STYLE_ID)) {
       to   { opacity: 1; }
     }
 
-    /* Стрелка выбора всегда вертикально по центру поля. */
     .select-box {
       position: relative !important;
     }
@@ -39,7 +36,6 @@ if (!document.getElementById(STYLE_ID)) {
       pointer-events: none !important;
     }
 
-    /* HEX и Сброс всегда одинаковой высоты и нормально помещаются. */
     #customize .hexrow {
       display: grid !important;
       grid-template-columns: minmax(0, 1fr) 90px !important;
@@ -74,37 +70,9 @@ function getScreen() {
   return document.querySelector('#schedulePage')?.closest('.screen') || document.querySelector('.screen');
 }
 
-function restoreScroll(screen) {
-  if (!screen) return;
-  screen.scrollTop = savedScroll;
-}
-
-function protectViewport() {
-  const screen = getScreen();
-  if (!screen || protecting) return;
-
-  savedScroll = screen.scrollTop;
-  if (savedScroll <= 0) return;
-
-  protecting = true;
-  restoreScroll(screen);
-
-  /* Сохраняем позицию только на время фактической замены расписания.
-     Не используем screenshot/clone: именно они давали вспышку верхней
-     части страницы при переключении дня во время прокрутки. */
-  const observer = new MutationObserver(() => {
-    restoreScroll(screen);
-  });
-  observer.observe(screen, { childList: true, subtree: true });
-
-  requestAnimationFrame(() => {
-    restoreScroll(screen);
-    requestAnimationFrame(() => {
-      restoreScroll(screen);
-      observer.disconnect();
-      protecting = false;
-    });
-  });
+function isSameDay(button) {
+  const active = button.closest('.day-list')?.querySelector('.day-btn.active');
+  return !!active && (active === button || active.textContent.trim() === button.textContent.trim());
 }
 
 function init() {
@@ -112,15 +80,27 @@ function init() {
     const button = event.target.closest?.('.day-btn');
     if (!button) return;
 
-    const active = button.closest('.day-list')?.querySelector('.day-btn.active');
-    if (active && (active === button || active.textContent.trim() === button.textContent.trim())) {
+    if (isSameDay(button)) {
       event.preventDefault();
       event.stopImmediatePropagation();
       return;
     }
 
-    protectViewport();
+    const screen = getScreen();
+    if (screen) {
+      /* Если пользователь был внизу, новый день всегда начинается сверху,
+         прямо с блока «Учебная группа / Дата». */
+      screen.scrollTop = 0;
+      switchingDay = true;
+    }
   }, true);
+
+  window.addEventListener('scheduleapp:data-ready', () => {
+    if (!switchingDay) return;
+    const screen = getScreen();
+    if (screen) screen.scrollTop = 0;
+    switchingDay = false;
+  });
 }
 
 if (document.readyState === 'loading') {
