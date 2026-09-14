@@ -1,11 +1,16 @@
 (() => {
 'use strict';
 
-const LOCK_KEY = 'scheduleapp.fixedGroup.v1';
+const LOCK_KEY = 'scheduleapp.fixedGroup.v2';
+const OLD_LOCK_KEY = 'scheduleapp.fixedGroup.v1';
 const STYLE_ID = 'schedule-group-lock-style';
-let fixedGroup = localStorage.getItem(LOCK_KEY) || '';
+
+let fixedGroup = localStorage.getItem(LOCK_KEY) || localStorage.getItem(OLD_LOCK_KEY) || '';
 let control = null;
-let syncing = false;
+let approvedValue = '';
+let dialogOpen = false;
+let applying = false;
+let lastKnownGroup = '';
 
 if (!document.getElementById(STYLE_ID)) {
   const style = document.createElement('style');
@@ -37,7 +42,8 @@ if (!document.getElementById(STYLE_ID)) {
 
 function readControl() {
   const direct = document.querySelector('#groupSelect, select[name="group"], select[data-role="group"], [data-group-select]');
-  if (direct) return direct;
+  if (direct && direct.tagName === 'SELECT') return direct;
+
   const selects = Array.from(document.querySelectorAll('select'));
   return selects.find(s => {
     const texts = Array.from(s.options || []).map(o => o.textContent.trim());
@@ -45,31 +51,45 @@ function readControl() {
   }) || null;
 }
 
-function currentValue() {
+function optionsHaveGroup(value) {
+  return !!control && Array.from(control.options || []).some(o => o.value === value || o.textContent.trim() === value);
+}
+
+function getSelectText(select) {
+  if (!select) return '';
+  return select.options?.[select.selectedIndex]?.textContent?.trim() || select.value || '';
+}
+
+function currentGroup() {
   if (typeof state !== 'undefined' && state.selectedGroup) return String(state.selectedGroup);
-  return control?.value || '';
+  return getSelectText(control);
 }
 
 function setSelectValue(value) {
   if (!control || !value) return false;
-  const options = Array.from(control.options || []);
-  const match = options.find(o => o.value === value || o.textContent.trim() === value);
+  const match = Array.from(control.options || []).find(o => o.value === value || o.textContent.trim() === value);
   if (!match) return false;
   control.value = match.value;
   return true;
 }
 
-function dispatchGroupChange() {
-  if (!control) return;
-  const ev = new Event('change', { bubbles:true });
-  ev.__scheduleGroupLockApproved = true;
-  control.dispatchEvent(ev);
+function fireApprovedChange(value) {
+  approvedValue = value;
+  applying = true;
+  if (typeof state !== 'undefined') state.selectedGroup = value;
+  try {
+    control?.dispatchEvent(new Event('change', { bubbles:true }));
+  } catch (_) {}
+  setTimeout(() => {
+    approvedValue = '';
+    applying = false;
+  }, 350);
 }
 
 function syncIndicator() {
-  let indicator = document.getElementById('group-lock-indicator');
   const host = control?.closest('.select-box') || control?.parentElement;
   if (!host) return;
+  let indicator = document.getElementById('group-lock-indicator');
   if (!indicator) {
     indicator = document.createElement('div');
     indicator.id = 'group-lock-indicator';
@@ -79,19 +99,39 @@ function syncIndicator() {
   indicator.textContent = fixedGroup ? `📌 Группа зафиксирована: ${fixedGroup}` : '';
 }
 
-function modal(kind, requested, previous, done) {
+function createModal() {
   let m = document.getElementById('group-lock-modal');
-  if (!m) {
-    m = document.createElement('div');
-    m.id = 'group-lock-modal';
-    m.innerHTML = `<div class="group-lock-sheet">
-      <div class="group-lock-head"><div class="group-lock-icon">📌</div><div><div class="group-lock-title" id="gl-title"></div><div class="group-lock-sub" id="gl-sub"></div></div></div>
-      <div class="group-lock-group" id="gl-group"></div>
-      <div class="group-lock-actions"><button class="group-lock-btn" id="gl-no" type="button"></button><button class="group-lock-btn primary" id="gl-yes" type="button"></button></div>
-    </div>`;
-    document.body.appendChild(m);
-    m.addEventListener('click', e => { if (e.target === m) { m.classList.remove('open'); done(false); } });
-  }
+  if (m) return m;
+  m = document.createElement('div');
+  m.id = 'group-lock-modal';
+  m.innerHTML = `<div class="group-lock-sheet">
+    <div class="group-lock-head"><div class="group-lock-icon">📌</div><div><div class="group-lock-title" id="gl-title"></div><div class="group-lock-sub" id="gl-sub"></div></div></div>
+    <div class="group-lock-group" id="gl-group"></div>
+    <div class="group-lock-actions"><button class="group-lock-btn" id="gl-no" type="button"></button><button class="group-lock-btn primary" id="gl-yes" type="button"></button></div>
+  </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => {
+    if (e.target !== m || !dialogOpen) return;
+    closeDialog(false);
+  });
+  return m;
+}
+
+let pendingAction = null;
+
+function closeDialog(ok) {
+  const m = document.getElementById('group-lock-modal');
+  if (m) m.classList.remove('open');
+  dialogOpen = false;
+  const action = pendingAction;
+  pendingAction = null;
+  if (action) action(!!ok);
+}
+
+function ask(kind, requested, previous, done) {
+  const m = createModal();
+  dialogOpen = true;
+  pendingAction = done;
   m.querySelector('#gl-title').textContent = kind === 'relock' ? 'Пере зафиксировать группу?' : 'Зафиксировать группу?';
   m.querySelector('#gl-sub').textContent = kind === 'relock'
     ? `Сейчас закреплена «${previous}». Новая группа заменит её.`
@@ -99,78 +139,111 @@ function modal(kind, requested, previous, done) {
   m.querySelector('#gl-group').textContent = requested;
   m.querySelector('#gl-no').textContent = kind === 'relock' ? `Оставить ${previous}` : 'Нет';
   m.querySelector('#gl-yes').textContent = kind === 'relock' ? 'Да, пере зафиксировать' : 'Да';
-  m.querySelector('#gl-no').onclick = () => { m.classList.remove('open'); done(false); };
-  m.querySelector('#gl-yes').onclick = () => { m.classList.remove('open'); done(true); };
+  m.querySelector('#gl-no').onclick = () => closeDialog(false);
+  m.querySelector('#gl-yes').onclick = () => closeDialog(true);
   m.classList.add('open');
 }
 
-function approve(requested, previous, kind) {
-  const allow = (ok) => {
-    if (ok) {
-      fixedGroup = requested;
-      localStorage.setItem(LOCK_KEY, fixedGroup);
-      setSelectValue(requested);
-      syncing = true;
-      dispatchGroupChange();
-      setTimeout(() => { syncing = false; }, 250);
-      syncIndicator();
-    } else if (previous) {
-      setSelectValue(previous);
-      syncing = true;
-      dispatchGroupChange();
-      setTimeout(() => { syncing = false; }, 250);
-    }
-  };
-  modal(kind, requested, previous, allow);
+function restorePrevious(previous) {
+  if (!previous || !setSelectValue(previous)) return;
+  if (typeof state !== 'undefined') state.selectedGroup = previous;
+  fireApprovedChange(previous);
 }
 
-function handleChange(event) {
-  if (event.__scheduleGroupLockApproved || syncing || !control || event.target !== control) return;
-  const requested = control.options?.[control.selectedIndex]?.textContent?.trim() || control.value || '';
-  const previous = typeof state !== 'undefined' && state.selectedGroup ? String(state.selectedGroup) : '';
-  if (!requested || requested === previous) return;
+function requestGroup(requested) {
+  if (!requested || dialogOpen || applying) return;
+  const previous = currentGroup();
+  if (!previous || requested === previous) return;
 
-  event.stopImmediatePropagation();
-  event.preventDefault();
   setSelectValue(previous);
+  if (typeof state !== 'undefined') state.selectedGroup = previous;
+  lastKnownGroup = previous;
 
   if (fixedGroup) {
-    approve(requested, fixedGroup, 'relock');
+    ask('relock', requested, fixedGroup, ok => {
+      if (!ok) {
+        restorePrevious(fixedGroup);
+        return;
+      }
+      fixedGroup = requested;
+      localStorage.setItem(LOCK_KEY, fixedGroup);
+      localStorage.setItem(OLD_LOCK_KEY, fixedGroup);
+      if (setSelectValue(requested)) {
+        if (typeof state !== 'undefined') state.selectedGroup = requested;
+        fireApprovedChange(requested);
+      }
+      syncIndicator();
+    });
   } else {
-    approve(requested, previous, 'lock');
+    ask('lock', requested, previous, ok => {
+      if (!ok) {
+        restorePrevious(previous);
+        return;
+      }
+      fixedGroup = requested;
+      localStorage.setItem(LOCK_KEY, fixedGroup);
+      localStorage.setItem(OLD_LOCK_KEY, fixedGroup);
+      if (setSelectValue(requested)) {
+        if (typeof state !== 'undefined') state.selectedGroup = requested;
+        fireApprovedChange(requested);
+      }
+      syncIndicator();
+    });
   }
 }
 
+function isGroupSelect(target) {
+  if (!target) return false;
+  if (control && target === control) return true;
+  if (target.tagName !== 'SELECT') return false;
+  const texts = Array.from(target.options || []).map(o => o.textContent.trim());
+  return texts.length >= 5 && texts.some(t => /\bм\/с\b|\bкласс\b|\bлаб\b|\bак\b/i.test(t));
+}
+
+function onChangeCapture(event) {
+  if (!isGroupSelect(event.target)) return;
+  if (approvedValue && getSelectText(event.target) === approvedValue) return;
+  if (applying || dialogOpen) {
+    event.stopImmediatePropagation();
+    event.preventDefault();
+    return;
+  }
+  const requested = getSelectText(event.target);
+  event.stopImmediatePropagation();
+  event.preventDefault();
+  if (control !== event.target) control = event.target;
+  requestGroup(requested);
+}
+
+document.addEventListener('change', onChangeCapture, true);
+
 function applyFixedGroup() {
-  control = readControl();
-  if (!control || !fixedGroup || typeof state === 'undefined' || !state.groups?.includes(fixedGroup)) {
-    syncIndicator();
-    return;
+  const found = readControl();
+  if (found) control = found;
+  if (!control) return;
+
+  const available = !!fixedGroup && optionsHaveGroup(fixedGroup);
+  syncIndicator();
+  if (!available || typeof state === 'undefined' || !state.groups?.includes(fixedGroup)) return;
+
+  if (String(state.selectedGroup) !== fixedGroup || getSelectText(control) !== fixedGroup) {
+    setSelectValue(fixedGroup);
+    if (typeof state !== 'undefined') state.selectedGroup = fixedGroup;
+    fireApprovedChange(fixedGroup);
   }
-  if (String(state.selectedGroup) === fixedGroup && control.value) {
-    syncIndicator();
-    return;
-  }
-  setSelectValue(fixedGroup);
-  syncing = true;
-  try { dispatchGroupChange(); } catch (_) {}
-  setTimeout(() => { syncing = false; syncIndicator(); }, 250);
 }
 
 function attach() {
   const found = readControl();
-  if (!found) return false;
-  if (control !== found) {
-    control = found;
-    control.addEventListener('change', handleChange, true);
-  }
+  if (found) control = found;
+  if (!control) return;
   syncIndicator();
-  applyFixedGroup();
-  return true;
+  if (!dialogOpen) applyFixedGroup();
 }
 
 window.addEventListener('scheduleapp:data-ready', () => setTimeout(attach, 0));
-setInterval(attach, 800);
+window.addEventListener('load', () => setTimeout(attach, 0));
+setInterval(attach, 500);
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attach);
 else attach();
