@@ -2,26 +2,26 @@
 'use strict';
 
 const STYLE_ID = 'schedule-smooth-days-style';
-let restoring = false;
-let restoreUntil = 0;
+let protecting = false;
 let savedScroll = 0;
 
 if (!document.getElementById(STYLE_ID)) {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = `
-    /* Переключение дня не должно перерисовывать весь экран.
-       Особенно важно при прокрутке: никакого snapshot и никакого
-       fade самого списка, иначе WebView на мгновение показывает верх. */
+    /* Мягкий переход между днями. Никаких snapshot/transform,
+       поэтому при прокрутке верх списка не вспыхивает. */
     .schedule-list.cf-day {
-      animation: none !important;
-      transform: none !important;
-      opacity: 1 !important;
-      will-change: auto !important;
+      animation: scheduleDayFade 180ms ease-out !important;
+      will-change: opacity !important;
     }
 
-    /* Стрелка является частью самого поля и всегда центрируется
-       независимо от высоты/шрифта/темы. */
+    @keyframes scheduleDayFade {
+      from { opacity: 0.18; }
+      to   { opacity: 1; }
+    }
+
+    /* Стрелка выбора всегда вертикально по центру поля. */
     .select-box {
       position: relative !important;
     }
@@ -39,7 +39,7 @@ if (!document.getElementById(STYLE_ID)) {
       pointer-events: none !important;
     }
 
-    /* Кнопка сброса остаётся ровно в одной строке с HEX-полем. */
+    /* HEX и Сброс всегда одинаковой высоты и нормально помещаются. */
     #customize .hexrow {
       display: grid !important;
       grid-template-columns: minmax(0, 1fr) 90px !important;
@@ -57,8 +57,14 @@ if (!document.getElementById(STYLE_ID)) {
     }
 
     @media(max-width:380px) {
-      #customize .hexrow { grid-template-columns:minmax(0,1fr) 86px !important; }
-      #customize #resetc { padding-left:6px !important; padding-right:6px !important; font-size:10px !important; }
+      #customize .hexrow {
+        grid-template-columns: minmax(0, 1fr) 86px !important;
+      }
+      #customize #resetc {
+        padding-left: 6px !important;
+        padding-right: 6px !important;
+        font-size: 10px !important;
+      }
     }
   `;
   document.head.appendChild(style);
@@ -68,39 +74,35 @@ function getScreen() {
   return document.querySelector('#schedulePage')?.closest('.screen') || document.querySelector('.screen');
 }
 
-function restore() {
-  const screen = getScreen();
+function restoreScroll(screen) {
   if (!screen) return;
   screen.scrollTop = savedScroll;
 }
 
 function protectViewport() {
   const screen = getScreen();
-  if (!screen) return;
+  if (!screen || protecting) return;
 
   savedScroll = screen.scrollTop;
   if (savedScroll <= 0) return;
 
-  restoring = true;
-  restoreUntil = performance.now() + 180;
-  restore();
+  protecting = true;
+  restoreScroll(screen);
 
-  /* MutationObserver выполняется до отрисовки следующего кадра. Поэтому
-     если основная логика приложения заменит schedule-list и WebView
-     попытается вернуть scrollTop наверх, мы возвращаем исходную позицию
-     ещё до того, как пользователь увидит этот кадр. */
+  /* Сохраняем позицию только на время фактической замены расписания.
+     Не используем screenshot/clone: именно они давали вспышку верхней
+     части страницы при переключении дня во время прокрутки. */
   const observer = new MutationObserver(() => {
-    if (!restoring) return;
-    restore();
+    restoreScroll(screen);
   });
   observer.observe(screen, { childList: true, subtree: true });
 
   requestAnimationFrame(() => {
-    restore();
+    restoreScroll(screen);
     requestAnimationFrame(() => {
-      restore();
-      restoring = false;
+      restoreScroll(screen);
       observer.disconnect();
+      protecting = false;
     });
   });
 }
@@ -121,6 +123,9 @@ function init() {
   }, true);
 }
 
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-else init();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 })();
