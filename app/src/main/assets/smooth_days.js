@@ -89,9 +89,22 @@ function removeSnapshots() {
   document.querySelectorAll('.' + SNAPSHOT_CLASS).forEach(x => x.remove());
 }
 
-function begin() {
+function isActiveDay(button) {
+  if (!button) return false;
+  if (button.classList.contains('active')) return true;
+
+  const listEl = button.closest('.day-list');
+  const active = listEl?.querySelector('.day-btn.active');
+  if (!active) return false;
+
+  // На случай если активный класс ставится чуть позже клика,
+  // сравниваем значение кнопки с текущим активным значением.
+  return button.textContent.trim() === active.textContent.trim();
+}
+
+function begin(button) {
   const current = list();
-  if (!current || transitionBusy) return;
+  if (!current || transitionBusy || isActiveDay(button)) return false;
 
   removeSnapshots();
   const snapshot = current.cloneNode(true);
@@ -108,15 +121,31 @@ function begin() {
       }, 250);
     });
   });
+
+  return true;
 }
 
 function init() {
   document.addEventListener('pointerdown', event => {
-    if (event.target.closest?.('.day-btn')) begin();
+    const button = event.target.closest?.('.day-btn');
+    if (!button) return;
+
+    // Нажатие на уже выбранный день ничего не делает вообще:
+    // ни перерисовки, ни анимации, ни изменения состояния.
+    if (isActiveDay(button)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+
+    begin(button);
   }, true);
 
   document.addEventListener('click', event => {
-    if (!event.target.closest?.('.day-btn')) return;
+    const button = event.target.closest?.('.day-btn');
+    if (!button) return;
+    if (isActiveDay(button)) return;
+
     setTimeout(() => removeSnapshots(), 320);
   }, true);
 }
