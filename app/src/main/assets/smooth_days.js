@@ -12,9 +12,11 @@ if (!document.getElementById(STYLE_ID)) {
     .schedule-list {
       position:relative;
     }
+
     .schedule-list.cf-day {
       animation:none !important;
     }
+
     .schedule-day-old-snapshot {
       position:absolute !important;
       z-index:12 !important;
@@ -26,13 +28,54 @@ if (!document.getElementById(STYLE_ID)) {
       animation:scheduleOldDayFade 220ms ease-out forwards !important;
       transform-origin:center top;
     }
+
     @keyframes scheduleOldDayFade {
       from { opacity:1; transform:translate3d(0,0,0); }
       to { opacity:0; transform:translate3d(0,-5px,0); }
     }
+
     html[data-uianim=off] .schedule-day-old-snapshot {
       animation:none !important;
       opacity:0 !important;
+    }
+
+    /* Геометрия стандартных элементов UI */
+    .select-box::after {
+      top:50% !important;
+      transform:translateY(-50%) !important;
+      line-height:1 !important;
+    }
+
+    #customize .hexrow {
+      grid-template-columns:minmax(0,1fr) 96px !important;
+      width:100% !important;
+      align-items:stretch !important;
+    }
+
+    #customize .hexinput,
+    #customize #resetc {
+      min-width:0 !important;
+      width:100% !important;
+      box-sizing:border-box !important;
+    }
+
+    #customize #resetc {
+      height:38px !important;
+      margin:0 !important;
+      padding:0 10px !important;
+      border-radius:11px !important;
+      white-space:nowrap !important;
+      overflow:hidden !important;
+    }
+
+    @media(max-width:380px) {
+      #customize .hexrow {
+        grid-template-columns:minmax(0,1fr) 92px !important;
+      }
+      #customize #resetc {
+        padding:0 7px !important;
+        font-size:10px !important;
+      }
     }
   `;
   document.head.appendChild(style);
