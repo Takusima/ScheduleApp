@@ -1,5 +1,6 @@
 package com.taku.schedule
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -19,6 +20,8 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         private const val PREFS = "schedule_widget"
         private const val KEY_JSON = "json"
         private const val KEY_ACCENT = "accent"
+        private const val ACTION_TICK = "com.taku.schedule.WIDGET_TICK"
+        private const val REQUEST_TICK = 702
 
         fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -26,6 +29,9 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             val ids = manager.getAppWidgetIds(component)
             if (ids.isNotEmpty()) {
                 ScheduleWidgetProvider().updateAll(context, manager, ids)
+                scheduleTick(context)
+            } else {
+                cancelTick(context)
             }
         }
 
@@ -40,6 +46,30 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             refresh(context)
         }
 
+        private fun tickIntent(context: Context): PendingIntent {
+            val intent = Intent(context, ScheduleWidgetProvider::class.java).apply {
+                action = ACTION_TICK
+            }
+            return PendingIntent.getBroadcast(
+                context,
+                REQUEST_TICK,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag()
+            )
+        }
+
+        private fun scheduleTick(context: Context) {
+            val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val pending = tickIntent(context)
+            val trigger = System.currentTimeMillis() + 60_000L
+            alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pending)
+        }
+
+        private fun cancelTick(context: Context) {
+            val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarm.cancel(tickIntent(context))
+        }
+
         private fun immutableFlag(): Int =
             if (android.os.Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0
 
@@ -52,6 +82,7 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         updateAll(context, appWidgetManager, appWidgetIds)
+        scheduleTick(context)
     }
 
     override fun onEnabled(context: Context) {
@@ -59,11 +90,18 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         val manager = AppWidgetManager.getInstance(context)
         val ids = manager.getAppWidgetIds(ComponentName(context, ScheduleWidgetProvider::class.java))
         updateAll(context, manager, ids)
+        scheduleTick(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        cancelTick(context)
+        super.onDisabled(context)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (
+            intent.action == ACTION_TICK ||
             intent.action == Intent.ACTION_TIME_CHANGED ||
             intent.action == Intent.ACTION_TIMEZONE_CHANGED ||
             intent.action == Intent.ACTION_DATE_CHANGED
