@@ -3,6 +3,7 @@
 
 const WIDGET_UPDATE_DELAY = 80;
 let widgetTimer = null;
+let lastAccent = '';
 
 function buildWidgetPayload() {
   if (typeof state === 'undefined' || !state.data || !state.selectedGroup) return null;
@@ -25,34 +26,45 @@ function buildWidgetPayload() {
   return out;
 }
 
-function updateWidget() {
+function getAccent() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#A66CFF';
+}
+
+function updateWidget(force = false) {
   if (!window.Android || typeof Android.updateWidgetData !== 'function') return;
   const payload = buildWidgetPayload();
   if (!payload) return;
   try {
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#A66CFF';
+    const accent = getAccent();
+    if (!force && accent === lastAccent && !state?.selectedGroup) return;
+    lastAccent = accent;
     Android.updateWidgetData(JSON.stringify(payload), accent);
   } catch (_) {}
 }
 
-function scheduleWidgetUpdate() {
+function scheduleWidgetUpdate(force = false) {
   clearTimeout(widgetTimer);
-  widgetTimer = setTimeout(updateWidget, WIDGET_UPDATE_DELAY);
+  widgetTimer = setTimeout(() => updateWidget(force), WIDGET_UPDATE_DELAY);
 }
 
-window.addEventListener('scheduleapp:data-ready', scheduleWidgetUpdate);
+window.addEventListener('scheduleapp:data-ready', () => scheduleWidgetUpdate(true));
 
 document.addEventListener('click', event => {
   if (event.target.closest?.('.day-btn, #groupSelect, .group-option, [data-group]')) {
-    scheduleWidgetUpdate();
+    scheduleWidgetUpdate(true);
   }
 }, true);
 
-setInterval(updateWidget, 60000);
+setInterval(() => {
+  const accent = getAccent();
+  if (accent !== lastAccent) updateWidget(true);
+}, 1500);
+
+setInterval(() => updateWidget(true), 60000);
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', scheduleWidgetUpdate);
+  document.addEventListener('DOMContentLoaded', () => scheduleWidgetUpdate(true));
 } else {
-  scheduleWidgetUpdate();
+  scheduleWidgetUpdate(true);
 }
 })();
