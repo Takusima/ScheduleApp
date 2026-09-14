@@ -13,6 +13,8 @@ if (!document.getElementById(STYLE_ID)) {
       position:relative;
     }
 
+    /* Старый список больше не анимируем сам: это исключает мерцание и
+       поломку геометрии при переключении, когда пользователь прокрутил вниз. */
     .schedule-list.cf-day {
       animation:none !important;
     }
@@ -39,7 +41,7 @@ if (!document.getElementById(STYLE_ID)) {
       opacity:0 !important;
     }
 
-    /* Геометрия стандартных элементов UI */
+    /* Стрелка всегда строго по центру поля выбора. */
     .select-box::after {
       top:50% !important;
       transform:translateY(-50%) !important;
@@ -97,14 +99,23 @@ function isActiveDay(button) {
   const active = listEl?.querySelector('.day-btn.active');
   if (!active) return false;
 
-  // На случай если активный класс ставится чуть позже клика,
-  // сравниваем значение кнопки с текущим активным значением.
   return button.textContent.trim() === active.textContent.trim();
 }
 
 function begin(button) {
   const current = list();
   if (!current || transitionBusy || isActiveDay(button)) return false;
+
+  /*
+   * Если пользователь находится ниже начала списка, старый snapshot
+   * нельзя безопасно накладывать поверх списка: absolute-позиционирование
+   * привязывается к геометрии всего документа и даёт «сломанный» кадр.
+   * В этом случае переключаем день сразу — без мерцания.
+   * Сверху оставляем мягкий переход, где snapshot геометрически корректен.
+   */
+  const rect = current.getBoundingClientRect();
+  const scrolledDown = rect.top < -8;
+  if (scrolledDown) return true;
 
   removeSnapshots();
   const snapshot = current.cloneNode(true);
@@ -130,8 +141,6 @@ function init() {
     const button = event.target.closest?.('.day-btn');
     if (!button) return;
 
-    // Нажатие на уже выбранный день ничего не делает вообще:
-    // ни перерисовки, ни анимации, ни изменения состояния.
     if (isActiveDay(button)) {
       event.preventDefault();
       event.stopImmediatePropagation();
