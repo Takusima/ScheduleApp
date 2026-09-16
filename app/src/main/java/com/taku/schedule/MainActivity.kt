@@ -1,11 +1,15 @@
 package com.taku.schedule
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -13,6 +17,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import org.json.JSONArray
@@ -28,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private val servedScheduleFiles = ConcurrentHashMap<String, File>()
     private val localScheduleBaseUrl = "https://appassets.androidplatform.net/schedule"
     private val backgroundDir by lazy { File(filesDir, "schedule_background") }
+    private var pendingNotificationTest = false
     private val openExcel = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (!uris.isNullOrEmpty()) importSelectedFiles(uris) }
     private val openBackground = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) importBackground(uri) }
 
@@ -65,6 +71,15 @@ class MainActivity : AppCompatActivity() {
             addJavascriptInterface(Bridge(),"Android");loadUrl("https://appassets.androidplatform.net/assets/index.html")
         };setContentView(web)
     }
+
+    override fun onRequestPermissionsResult(requestCode:Int,permissions:Array<out String>,grantResults:IntArray){
+        super.onRequestPermissionsResult(requestCode,permissions,grantResults)
+        if(requestCode==9001&&pendingNotificationTest){
+            pendingNotificationTest=false
+            if(Build.VERSION.SDK_INT<33||grantResults.firstOrNull()==PackageManager.PERMISSION_GRANTED)LessonReminderReceiver.sendTest(this)
+        }
+    }
+
     override fun onDestroy(){if(::web.isInitialized){web.removeJavascriptInterface("Android");web.destroy()};servedScheduleFiles.clear();super.onDestroy()}
 
     inner class Bridge{
@@ -78,14 +93,11 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun updateWidgetData(json:String,accent:String){thread{try{ScheduleWidgetProvider.saveAndRefresh(this@MainActivity,json,accent)}catch(_:Exception){}}}
         @JavascriptInterface fun getCachedCount():Int=ScheduleRepository.readCachedFiles(this@MainActivity).size
         @JavascriptInterface fun setLessonReminders(enabled:Boolean,minutes:Int,group:String,sound:String,lessonsJson:String){LessonReminderScheduler.saveAndSchedule(this@MainActivity,enabled,minutes,group,sound,lessonsJson)}
-        @JavascriptInterface fun testLessonNotification(){LessonReminderReceiver.sendTest(this@MainActivity)}
+        @JavascriptInterface fun requestNotificationPermission(){runOnUiThread{if(Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(this@MainActivity,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){pendingNotificationTest=true;requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),9001)}else LessonReminderReceiver.sendTest(this@MainActivity)}}
+        @JavascriptInterface fun testLessonNotification(){runOnUiThread{if(Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(this@MainActivity,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){pendingNotificationTest=true;requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),9001)}else LessonReminderReceiver.sendTest(this@MainActivity)}}
+        @JavascriptInterface fun openNotificationSettings(){runOnUiThread{try{val i=Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply{putExtra(Settings.EXTRA_APP_PACKAGE,packageName);putExtra(Settings.EXTRA_CHANNEL_ID,"lesson_test_v3")};startActivity(i)}catch(_:Exception){startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply{putExtra(Settings.EXTRA_APP_PACKAGE,packageName)})}}}
     }
-    private fun importBackground(uri:Uri){thread{try{
-        backgroundDir.mkdirs();val name=queryDisplayName(uri)?.lowercase() ?: "background.jpg";val mime=contentResolver.getType(uri) ?: when{ name.endsWith(".gif")->"image/gif";name.endsWith(".webp")->"image/webp";name.endsWith(".png")->"image/png";else->"image/jpeg" }
-        val tmp=File(backgroundDir,"background.tmp");contentResolver.openInputStream(uri)?.use{input->tmp.outputStream().use{out->input.copyTo(out,64*1024)}}?:throw IllegalStateException("Не удалось прочитать изображение")
-        val current=File(backgroundDir,"current");if(current.exists())current.delete();if(!tmp.renameTo(current)){tmp.copyTo(current,true);tmp.delete()};File(backgroundDir,"current.mime").writeText(mime)
-        val url="https://appassets.androidplatform.net/background/current?v=${current.lastModified()}";runOnUiThread{web.evaluateJavascript("window.setScheduleBackground&&window.setScheduleBackground(${JSONObject.quote(url)},${JSONObject.quote(name)})",null)}
-    }catch(e:Exception){sendError(e.message?:"Не удалось установить фон")}}}
+    private fun importBackground(uri:Uri){thread{try{backgroundDir.mkdirs();val name=queryDisplayName(uri)?.lowercase() ?: "background.jpg";val mime=contentResolver.getType(uri) ?: when{ name.endsWith(".gif")->"image/gif";name.endsWith(".webp")->"image/webp";name.endsWith(".png")->"image/png";else->"image/jpeg" };val tmp=File(backgroundDir,"background.tmp");contentResolver.openInputStream(uri)?.use{input->tmp.outputStream().use{out->input.copyTo(out,64*1024)}}?:throw IllegalStateException("Не удалось прочитать изображение");val current=File(backgroundDir,"current");if(current.exists())current.delete();if(!tmp.renameTo(current)){tmp.copyTo(current,true);tmp.delete()};File(backgroundDir,"current.mime").writeText(mime);val url="https://appassets.androidplatform.net/background/current?v=${current.lastModified()}";runOnUiThread{web.evaluateJavascript("window.setScheduleBackground&&window.setScheduleBackground(${JSONObject.quote(url)},${JSONObject.quote(name)})",null)}}catch(e:Exception){sendError(e.message?:"Не удалось установить фон")}}}
     private fun queryDisplayName(uri:Uri):String?=try{contentResolver.query(uri,null,null,null,null)?.use{c->val i=c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);if(i>=0&&c.moveToFirst())c.getString(i)else null}}catch(_:Exception){null}
     private fun importSelectedFiles(uris:List<Uri>){thread{try{val f=ScheduleRepository.importExcelFiles(this@MainActivity,uris);sendFiles(f,"Excel загружен • сохранено файлов: ${f.size}")}catch(e:Exception){sendError(e.message?:"Не удалось загрузить Excel")}}}
     private fun sendFiles(files:List<File>,status:String){if(files.isEmpty()){sendError("Excel-файлы не найдены");return};while(servedScheduleFiles.size>24){servedScheduleFiles.keys.firstOrNull()?.let{servedScheduleFiles.remove(it)}};val r=JSONArray();files.forEach{f->if(f.exists()&&f.isFile&&f.length()>0){val t=UUID.randomUUID().toString();servedScheduleFiles[t]=f;r.put(JSONObject().apply{put("name",f.name);put("url","$localScheduleBaseUrl/$t")})}};if(r.length()==0){sendError("Excel-файлы не найдены");return};val js="""(function(){var data=${JSONObject.quote(r.toString())},status=${JSONObject.quote(status)};if(window.__schedulePerformanceReady&&typeof window.onNativeFiles==='function')window.onNativeFiles(data,status);else window.__schedulePendingNativeFiles={json:data,status:status}})();""";runOnUiThread{if(::web.isInitialized)web.evaluateJavascript(js,null)}}
