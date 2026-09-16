@@ -19,8 +19,8 @@ class LessonReminderReceiver : BroadcastReceiver() {
 
     companion object {
         const val ACTION_TEST = "com.taku.schedule.TEST_NOTIFICATION"
-        private const val TEST_CHANNEL_ID = "lesson_test_v3"
-        private const val REMINDER_CHANNEL_PREFIX = "lesson_reminders_v3_"
+        private const val TEST_CHANNEL_ID = "lesson_test_v4"
+        private const val REMINDER_CHANNEL_PREFIX = "lesson_reminders_v4_"
 
         fun sendTest(context: Context) {
             context.sendBroadcast(Intent(context, LessonReminderReceiver::class.java).apply {
@@ -50,6 +50,12 @@ class LessonReminderReceiver : BroadcastReceiver() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (test) manager.deleteNotificationChannel(TEST_CHANNEL_ID)
 
+            val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+
             val channel = NotificationChannel(
                 channelId,
                 if (test) "Тест уведомлений" else "Напоминания о парах",
@@ -58,13 +64,7 @@ class LessonReminderReceiver : BroadcastReceiver() {
                 description = if (test) "Проверка звука и вибрации уведомлений" else "Уведомления перед началом пары"
                 when {
                     test || mode == "both" || mode == "alarm" -> {
-                        setSound(
-                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
-                            AudioAttributes.Builder()
-                                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                                .build()
-                        )
+                        setSound(soundUri, audioAttributes)
                         enableVibration(true)
                         vibrationPattern = longArrayOf(0, 350, 180, 350)
                     }
@@ -112,7 +112,7 @@ class LessonReminderReceiver : BroadcastReceiver() {
             .build()
 
         NotificationManagerCompat.from(context).notify(
-            if (test) 9013 else intent?.getIntExtra("notificationId", 9012) ?: 9012,
+            if (test) 9014 else intent?.getIntExtra("notificationId", 9012) ?: 9012,
             notification
         )
     }
