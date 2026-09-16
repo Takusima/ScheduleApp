@@ -78,6 +78,7 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun updateWidgetData(json:String,accent:String){thread{try{ScheduleWidgetProvider.saveAndRefresh(this@MainActivity,json,accent)}catch(_:Exception){}}}
         @JavascriptInterface fun getCachedCount():Int=ScheduleRepository.readCachedFiles(this@MainActivity).size
         @JavascriptInterface fun setLessonReminders(enabled:Boolean,minutes:Int,group:String,sound:String,lessonsJson:String){LessonReminderScheduler.saveAndSchedule(this@MainActivity,enabled,minutes,group,sound,lessonsJson)}
+        @JavascriptInterface fun testLessonNotification(){LessonReminderReceiver.sendTest(this@MainActivity)}
     }
     private fun importBackground(uri:Uri){thread{try{
         backgroundDir.mkdirs();val name=queryDisplayName(uri)?.lowercase() ?: "background.jpg";val mime=contentResolver.getType(uri) ?: when{ name.endsWith(".gif")->"image/gif";name.endsWith(".webp")->"image/webp";name.endsWith(".png")->"image/png";else->"image/jpeg" }
