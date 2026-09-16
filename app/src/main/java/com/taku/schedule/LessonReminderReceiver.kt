@@ -17,29 +17,45 @@ import androidx.core.content.ContextCompat
 
 class LessonReminderReceiver : BroadcastReceiver() {
 
+    companion object {
+        const val ACTION_TEST = "com.taku.schedule.TEST_NOTIFICATION"
+        private const val TEST_CHANNEL_ID = "lesson_test_v3"
+        private const val REMINDER_CHANNEL_PREFIX = "lesson_reminders_v3_"
+
+        fun sendTest(context: Context) {
+            context.sendBroadcast(Intent(context, LessonReminderReceiver::class.java).apply {
+                action = ACTION_TEST
+                putExtra("test", true)
+                putExtra("lesson", "Тест уведомлений")
+            })
+        }
+    }
+
     override fun onReceive(context: Context, intent: Intent?) {
-        val lesson = intent?.getStringExtra("lesson") ?: return
-        val time = intent.getStringExtra("time") ?: ""
-        val room = intent.getStringExtra("room") ?: ""
-        val minutes = intent.getIntExtra("minutes", 10)
-        val mode = intent.getStringExtra("sound") ?: "alarm"
-        val test = intent.getBooleanExtra("test", false)
+        val isTestAction = intent?.action == ACTION_TEST
+        val test = isTestAction || intent?.getBooleanExtra("test", false) == true
+        val lesson = intent?.getStringExtra("lesson") ?: if (test) "Тест уведомлений" else return
+        val time = intent?.getStringExtra("time") ?: ""
+        val room = intent?.getStringExtra("room") ?: ""
+        val minutes = intent?.getIntExtra("minutes", 10) ?: 10
+        val mode = intent?.getStringExtra("sound") ?: "both"
 
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
 
-        val channelId = if (test) "lesson_test_v2" else "lesson_reminders_v2_$mode"
+        val channelId = if (test) TEST_CHANNEL_ID else REMINDER_CHANNEL_PREFIX + mode
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (test) manager.deleteNotificationChannel(TEST_CHANNEL_ID)
+
             val channel = NotificationChannel(
                 channelId,
                 if (test) "Тест уведомлений" else "Напоминания о парах",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = if (test) "Проверка звука и вибрации уведомлений" else "Уведомления перед началом пары"
-
                 when {
                     test || mode == "both" || mode == "alarm" -> {
                         setSound(
@@ -74,7 +90,7 @@ class LessonReminderReceiver : BroadcastReceiver() {
         )
 
         val text = if (test) {
-            "Если всё настроено правильно, сейчас должны быть звук и вибрация."
+            "Сейчас должны сработать звук и вибрация."
         } else {
             buildString {
                 append("Через ").append(minutes).append(" мин. начнётся: ").append(lesson)
@@ -96,7 +112,7 @@ class LessonReminderReceiver : BroadcastReceiver() {
             .build()
 
         NotificationManagerCompat.from(context).notify(
-            if (test) 9013 else intent.getIntExtra("notificationId", 9012),
+            if (test) 9013 else intent?.getIntExtra("notificationId", 9012) ?: 9012,
             notification
         )
     }
