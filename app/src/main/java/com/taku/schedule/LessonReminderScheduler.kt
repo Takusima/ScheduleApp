@@ -20,14 +20,7 @@ object LessonReminderScheduler {
     private const val KEY_IDS = "ids"
     private const val CHANNEL_REQUEST_BASE = 38000
 
-    fun saveAndSchedule(
-        context: Context,
-        enabled: Boolean,
-        minutes: Int,
-        group: String,
-        sound: String,
-        lessonsJson: String
-    ) {
+    fun saveAndSchedule(context: Context, enabled: Boolean, minutes: Int, group: String, sound: String, lessonsJson: String) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs.edit()
             .putBoolean(KEY_ENABLED, enabled)
@@ -44,14 +37,13 @@ object LessonReminderScheduler {
     fun schedule(context: Context) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         cancelExisting(context, prefs.getString(KEY_IDS, "") ?: "")
-
         if (!prefs.getBoolean(KEY_ENABLED, false)) {
             prefs.edit().putString(KEY_IDS, "").apply()
             return
         }
 
         val minutes = prefs.getInt(KEY_MINUTES, 10).coerceIn(1, 120)
-        val sound = prefs.getString(KEY_SOUND, "alarm") ?: "alarm"
+        val sound = prefs.getString(KEY_SOUND, "both") ?: "both"
         val lessons = try { JSONArray(prefs.getString(KEY_LESSONS, "[]") ?: "[]") } catch (_: Exception) { JSONArray() }
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val now = System.currentTimeMillis()
