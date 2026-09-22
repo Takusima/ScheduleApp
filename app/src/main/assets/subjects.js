@@ -2,7 +2,7 @@
     "use strict";
 
     const STORAGE_PREFIX = "scheduleapp_subjects_v2_";
-    let subjects = load();\n    let curator = localStorage.getItem("scheduleapp_curator_v1_" + groupKey()) || "";
+    let subjects = {};\n    let curator = "";
 
     function groupKey() { const s=document.getElementById("groupSelect"); const g=clean(s?s.value:""); return g ? g.toLowerCase().replace(/[^a-zа-я0-9]+/gi,"_") : "none"; }\n\n    function load() {
         try {
