@@ -321,6 +321,8 @@
             overflow: hidden;
             isolation: isolate;
             --nav-index: 0;
+            --nav-left: 5px;
+            --nav-width: 0px;
         }
 
         .bottom-nav::before {
@@ -329,13 +331,13 @@
             z-index: 0;
             top: 5px;
             bottom: 5px;
-            left: 5px;
-            width: calc((100% - 10px) / 4);
+            left: var(--nav-left);
+            width: var(--nav-width);
             border-radius: 16px;
             background: rgba(136, 74, 211, 0.16);
             box-shadow: inset 0 1px rgba(255,255,255,0.035);
-            transform: translateX(calc(var(--nav-index) * 100%));
-            transition: transform .24s cubic-bezier(.2,.8,.2,1);
+            transform: none;
+            transition: left .24s cubic-bezier(.2,.8,.2,1), width .24s cubic-bezier(.2,.8,.2,1);
             pointer-events: none;
         }
 
@@ -2629,6 +2631,20 @@ function goToSelectedCalendarDate() {
 /* =========================================================
    СТРАНИЦЫ
    ========================================================= */
+
+function updateNavBubble() {
+    const nav = document.querySelector(".bottom-nav");
+    if (!nav) return;
+
+    const index = Number(nav.style.getPropertyValue("--nav-index") || 0);
+    const innerWidth = Math.max(0, nav.clientWidth - 10);
+    const cellWidth = innerWidth / 4;
+
+    nav.style.setProperty("--nav-left", (5 + index * cellWidth) + "px");
+    nav.style.setProperty("--nav-width", cellWidth + "px");
+}
+
+window.addEventListener("resize", updateNavBubble);
 
 function showPage(page) {
 
