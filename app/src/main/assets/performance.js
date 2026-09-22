@@ -84,8 +84,9 @@ function finishApply() {
       });
     });
 
-    if (!state.selectedGroup || !state.groups.includes(state.selectedGroup)) {
-      state.selectedGroup = state.groups[0] || '';
+    if (state.selectedGroup && !state.groups.includes(state.selectedGroup)) {
+      state.selectedGroup = '';
+      localStorage.removeItem('scheduleapp.selectedGroup.v1');
     }
 
     if (!state.selectedDate || !state.dates.includes(state.selectedDate)) {
