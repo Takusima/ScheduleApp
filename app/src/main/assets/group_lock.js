@@ -61,6 +61,7 @@ function getSelectText(select) {
 }
 
 function currentGroup() {
+  if (lastKnownGroup) return String(lastKnownGroup);
   if (typeof state !== 'undefined' && state.selectedGroup) return String(state.selectedGroup);
   return getSelectText(control);
 }
@@ -152,44 +153,63 @@ function restorePrevious(previous) {
 
 function requestGroup(requested) {
   if (!requested || dialogOpen || applying) return;
-  const previous = currentGroup();
-  if (!previous || requested === previous) return;
 
-  setSelectValue(previous);
-  if (typeof state !== 'undefined') state.selectedGroup = previous;
-  lastKnownGroup = previous;
+  const previous = currentGroup();
+  if (!previous || requested === previous) {
+    if (typeof state !== 'undefined' && state.selectedGroup !== requested) {
+      state.selectedGroup = requested;
+    }
+    lastKnownGroup = requested;
+    return;
+  }
 
   if (fixedGroup) {
+    setSelectValue(fixedGroup);
+    if (typeof state !== 'undefined') state.selectedGroup = fixedGroup;
+
     ask('relock', requested, fixedGroup, ok => {
       if (!ok) {
         restorePrevious(fixedGroup);
         return;
       }
+
       fixedGroup = requested;
       localStorage.setItem(LOCK_KEY, fixedGroup);
       localStorage.setItem(OLD_LOCK_KEY, fixedGroup);
+
       if (setSelectValue(requested)) {
         if (typeof state !== 'undefined') state.selectedGroup = requested;
+        lastKnownGroup = requested;
         fireApprovedChange(requested);
       }
+
       syncIndicator();
     });
-  } else {
-    ask('lock', requested, previous, ok => {
-      if (!ok) {
-        restorePrevious(previous);
-        return;
-      }
-      fixedGroup = requested;
-      localStorage.setItem(LOCK_KEY, fixedGroup);
-      localStorage.setItem(OLD_LOCK_KEY, fixedGroup);
-      if (setSelectValue(requested)) {
-        if (typeof state !== 'undefined') state.selectedGroup = requested;
-        fireApprovedChange(requested);
-      }
-      syncIndicator();
-    });
+    return;
   }
+
+  // Первый осознанный выбор: группу используем в любом случае.
+  // Диалог спрашивает только, нужно ли закрепить её.
+  if (setSelectValue(previous)) {
+    if (typeof state !== 'undefined') state.selectedGroup = previous;
+  }
+
+  ask('lock', requested, previous, ok => {
+    if (!setSelectValue(requested)) return;
+
+    if (typeof state !== 'undefined') state.selectedGroup = requested;
+    localStorage.setItem('scheduleapp.selectedGroup.v1', requested);
+    lastKnownGroup = requested;
+
+    if (ok) {
+      fixedGroup = requested;
+      localStorage.setItem(LOCK_KEY, fixedGroup);
+      localStorage.setItem(OLD_LOCK_KEY, fixedGroup);
+    }
+
+    fireApprovedChange(requested);
+    syncIndicator();
+  });
 }
 
 function isGroupSelect(target) {
@@ -215,6 +235,16 @@ function onChangeCapture(event) {
   requestGroup(requested);
 }
 
+document.addEventListener('pointerdown', event => {
+  if (!isGroupSelect(event.target)) return;
+  lastKnownGroup = getSelectText(event.target);
+}, true);
+
+document.addEventListener('focusin', event => {
+  if (!isGroupSelect(event.target)) return;
+  lastKnownGroup = getSelectText(event.target);
+}, true);
+
 document.addEventListener('change', onChangeCapture, true);
 
 function applyFixedGroup() {
@@ -237,6 +267,13 @@ function attach() {
   const found = readControl();
   if (found) control = found;
   if (!control) return;
+
+  if (!lastKnownGroup) {
+    lastKnownGroup =
+      getSelectText(control) ||
+      (typeof state !== 'undefined' ? String(state.selectedGroup || '') : '');
+  }
+
   syncIndicator();
   if (!dialogOpen) applyFixedGroup();
 }
