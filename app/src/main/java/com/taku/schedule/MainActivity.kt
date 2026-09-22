@@ -97,6 +97,26 @@ class MainActivity : AppCompatActivity() {
         setContentView(web)
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == LessonReminderScheduler.PERMISSION_REQUEST) {
+            val granted = grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (granted) {
+                LessonReminderScheduler.reschedule(this)
+            }
+            if (::web.isInitialized) {
+                web.evaluateJavascript(
+                    "window.onLessonNotificationPermission&&window.onLessonNotificationPermission(" + granted + ")",
+                    null
+                )
+            }
+        }
+    }
+
     override fun onDestroy() {
         if (::web.isInitialized) {
             web.removeJavascriptInterface("Android")
@@ -116,6 +136,41 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun openTelegram() { runOnUiThread { val a = Uri.parse("tg://resolve?domain=takusima"); val b = Uri.parse("https://t.me/takusima"); try { startActivity(Intent(Intent.ACTION_VIEW, a)) } catch (_: Exception) { try { startActivity(Intent(Intent.ACTION_VIEW, b)) } catch (_: Exception) {} } } }
         @JavascriptInterface fun updateWidgetData(json: String, accent: String) { thread { try { ScheduleWidgetProvider.saveAndRefresh(this@MainActivity, json, accent) } catch (_: Exception) {} } }
         @JavascriptInterface fun getCachedCount(): Int = ScheduleRepository.readCachedFiles(this@MainActivity).size
+        @JavascriptInterface fun setLessonReminders(enabled: Boolean, minutes: Int, group: String, sound: String, lessonsJson: String) {
+            LessonReminderScheduler.configure(
+                this@MainActivity,
+                enabled,
+                minutes,
+                group,
+                sound,
+                lessonsJson
+            )
+            if (enabled) {
+                LessonReminderScheduler.requestPermissionIfNeeded(this@MainActivity)
+            }
+        }
+        @JavascriptInterface fun configureLessonNotifications(enabled: Boolean, minutes: Int) {
+            if (enabled) {
+                val granted = LessonReminderScheduler.requestPermissionIfNeeded(this@MainActivity)
+                LessonReminderScheduler.setEnabled(this@MainActivity, true, minutes)
+                if (granted) LessonReminderScheduler.reschedule(this@MainActivity)
+            } else {
+                LessonReminderScheduler.setEnabled(this@MainActivity, false, minutes)
+            }
+            runOnUiThread {
+                if (::web.isInitialized) {
+                    web.evaluateJavascript(
+                        "window.onLessonNotificationPermission&&window.onLessonNotificationPermission(" +
+                            (enabled && (android.os.Build.VERSION.SDK_INT < 33 ||
+                                checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+                                    android.content.pm.PackageManager.PERMISSION_GRANTED)) + ")",
+                        null
+                    )
+                }
+            }
+        }
+        @JavascriptInterface fun areLessonNotificationsEnabled(): Boolean =
+            LessonReminderScheduler.isEnabled(this@MainActivity)
     }
 
     private fun importBackground(uri: Uri) { thread { try { backgroundDir.mkdirs(); val name = queryDisplayName(uri)?.lowercase() ?: "background.jpg"; val mime = contentResolver.getType(uri) ?: when { name.endsWith(".gif") -> "image/gif"; name.endsWith(".webp") -> "image/webp"; name.endsWith(".png") -> "image/png"; else -> "image/jpeg" }; val tmp = File(backgroundDir, "background.tmp"); contentResolver.openInputStream(uri)?.use { input -> tmp.outputStream().use { out -> input.copyTo(out, 64 * 1024) } } ?: throw IllegalStateException("Не удалось прочитать изображение"); val current = File(backgroundDir, "current"); if (current.exists()) current.delete(); if (!tmp.renameTo(current)) { tmp.copyTo(current, true); tmp.delete() }; File(backgroundDir, "current.mime").writeText(mime); val url = "https://appassets.androidplatform.net/background/current?v=${current.lastModified()}"; runOnUiThread { web.evaluateJavascript("window.setScheduleBackground&&window.setScheduleBackground(${JSONObject.quote(url)},${JSONObject.quote(name)})", null) } } catch (e: Exception) { sendError(e.message ?: "Не удалось установить фон") } } }
