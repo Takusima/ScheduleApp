@@ -145,9 +145,6 @@ class MainActivity : AppCompatActivity() {
                 sound,
                 lessonsJson
             )
-            if (enabled) {
-                LessonReminderScheduler.requestPermissionIfNeeded(this@MainActivity)
-            }
         }
         @JavascriptInterface fun configureLessonNotifications(enabled: Boolean, minutes: Int) {
             if (enabled) {
