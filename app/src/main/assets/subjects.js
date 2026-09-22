@@ -2,9 +2,12 @@
     "use strict";
 
     const STORAGE_PREFIX = "scheduleapp_subjects_v2_";
-    let subjects = {};\n    let curator = "";
+    let subjects = {};
+    let curator = "";
 
-    function groupKey() { const s=document.getElementById("groupSelect"); const g=clean(s?s.value:""); return g ? g.toLowerCase().replace(/[^a-zа-я0-9]+/gi,"_") : "none"; }\n\n    function load() {
+    function groupKey() { const s=document.getElementById("groupSelect"); const g=clean(s?s.value:""); return g ? g.toLowerCase().replace(/[^a-zа-я0-9]+/gi,"_") : "none"; }
+
+    function load() {
         try {
             const value = JSON.parse(localStorage.getItem(STORAGE_PREFIX + groupKey()) || "{}");
             return value && typeof value === "object" ? value : {};
@@ -143,7 +146,8 @@
             }
             .subjects-open-btn {
                 position:absolute;
-                top:0; right:0;
+                top:2px; right:2px;
+                z-index:20;
                 width:48px; height:48px;
                 border-radius:16px;
                 background:linear-gradient(135deg,#a66cff,#7945d6);
@@ -243,8 +247,8 @@
         `;
         settings.parentNode.insertBefore(page, settings);
 
-        const scheduleTitle = document.querySelector("#schedulePage .top-title");
-        if (scheduleTitle && !document.getElementById("openSubjectsButton")) {
+        const schedulePage = document.getElementById("schedulePage");
+        if (schedulePage && !document.getElementById("openSubjectsButton")) {
             const button = document.createElement("button");
             button.id = "openSubjectsButton";
             button.className = "subjects-open-btn";
@@ -252,9 +256,8 @@
             button.title = "Предметы";
             button.innerHTML = '<span class="subjects-open-icon">📚</span>';
             button.onclick = function () { showPage("subjects"); };
-            scheduleTitle.style.position = "relative";
-            scheduleTitle.style.paddingRight = "58px";
-            scheduleTitle.appendChild(button);
+            schedulePage.style.position = "relative";
+            schedulePage.insertBefore(button, schedulePage.firstChild);
         }
 
         const search = document.getElementById("subjectSearch");
@@ -268,7 +271,19 @@
         const count = document.getElementById("subjectsCount");
         if (!list || !count) return;
 
-        const card = document.getElementById("curatorCard"); if(card){card.innerHTML="<div style=\"font-size:16px;font-weight:800\">✨ Куратор</div><div style=\"margin-top:5px;color:#92889e;font-size:11px\">Классный час · 09:55</div><div style=\"margin-top:9px;font-size:14px;font-weight:700\">"+(curator||"Куратор не указан")+"</div>";}\n        const query = key(document.getElementById("subjectSearch")?.value || "");
+        const card = document.getElementById("curatorCard");
+        if (card) {
+            card.innerHTML =
+                '<div style="font-size:16px;font-weight:800">✨ Куратор</div>' +
+                '<div style="margin-top:5px;color:#92889e;font-size:11px">Классный час · 09:55</div>' +
+                '<div style="margin-top:9px;font-size:14px;font-weight:700">' +
+                esc(curator || "Куратор не указан") +
+                '</div>' +
+                '<button type="button" id="editCuratorButton" style="margin-top:12px;width:100%;height:40px;border-radius:12px;background:rgba(255,255,255,.07);color:#fff;font-weight:700">Указать ФИО куратора</button>';
+            const edit = document.getElementById("editCuratorButton");
+            if (edit) edit.onclick = editCurator;
+        }
+        const query = key(document.getElementById("subjectSearch")?.value || "");
         const names = Object.keys(subjects)
             .sort(function (a, b) { return a.localeCompare(b, "ru"); })
             .filter(function (name) { return !query || key(name).includes(query); });
@@ -298,7 +313,16 @@
         });
     }
 
-    function editCurator() { const value=prompt("ФИО куратора",curator||""); if(value!==null){curator=clean(value); localStorage.setItem("scheduleapp_curator_v1_"+groupKey(),curator); render();} }\n\n    function editTeacher(name) {
+    function editCurator() {
+        const value = prompt("ФИО куратора", curator || "");
+        if (value !== null) {
+            curator = clean(value);
+            localStorage.setItem("scheduleapp_curator_v1_" + groupKey(), curator);
+            render();
+        }
+    }
+
+    function editTeacher(name) {
         let modal = document.getElementById("teacherModal");
         if (!modal) {
             modal = document.createElement("div");
@@ -355,11 +379,86 @@
         };
     }
 
+    function installBackToTop() {
+        let button = document.getElementById("backToTopButton");
+        const screen = document.querySelector(".screen");
+        if (!screen) return;
+
+        if (!button) {
+            const style = document.createElement("style");
+            style.id = "backToTopStyle";
+            style.textContent = `
+                #backToTopButton {
+                    position:fixed;
+                    right:18px;
+                    bottom:92px;
+                    width:46px;
+                    height:46px;
+                    border-radius:15px;
+                    display:none;
+                    align-items:center;
+                    justify-content:center;
+                    z-index:60;
+                    color:#fff;
+                    font-size:22px;
+                    font-weight:800;
+                    background:var(--accent-color,#8b51e6);
+                    border:1px solid rgba(255,255,255,.18);
+                    box-shadow:0 9px 25px rgba(0,0,0,.35),0 0 18px rgba(139,81,230,.28);
+                    backdrop-filter:blur(12px);
+                    cursor:pointer;
+                    transition:opacity .2s ease,transform .2s ease,background .25s ease;
+                }
+                #backToTopButton.visible { display:flex; animation:backToTopIn .22s ease both; }
+                #backToTopButton:active { transform:scale(.92); }
+                @keyframes backToTopIn {
+                    from { opacity:0; transform:translateY(8px) scale(.9); }
+                    to { opacity:1; transform:translateY(0) scale(1); }
+                }
+                @media (min-width:600px) {
+                    #backToTopButton { right:calc(50% - 262px); }
+                }
+            `;
+            document.head.appendChild(style);
+
+            button = document.createElement("button");
+            button.id = "backToTopButton";
+            button.type = "button";
+            button.setAttribute("aria-label", "В начало");
+            button.title = "В начало";
+            button.innerHTML = "↑";
+            button.onclick = function () {
+                screen.scrollTo({ top:0, behavior:"smooth" });
+            };
+            document.body.appendChild(button);
+        }
+
+        const refreshColor = function () {
+            const source = document.querySelector(".primary-btn");
+            const bg = source ? getComputedStyle(source).backgroundColor : "";
+            if (bg && bg !== "rgba(0, 0, 0, 0)") {
+                button.style.background = "var(--accent-color," + bg + ")";
+            }
+        };
+
+        if (!screen.__backToTopBound) {
+            screen.__backToTopBound = true;
+            screen.addEventListener("scroll", function () {
+                button.classList.toggle("visible", screen.scrollTop >= 150);
+            }, { passive:true });
+        }
+        refreshColor();
+        setTimeout(refreshColor, 800);
+    }
+
     function observeGroup() {
         const select = document.getElementById("groupSelect");
         if (!select || select.__subjectsObserved) return;
         select.__subjectsObserved = true;
         select.addEventListener("change", function () {
+            subjects = load();
+            curator = localStorage.getItem("scheduleapp_curator_v1_" + groupKey()) || "";
+            render();
             setTimeout(collectFromFiles, 100);
         });
     }
@@ -387,8 +486,11 @@
 
     function boot() {
         inject();
+        subjects = load();
+        curator = localStorage.getItem("scheduleapp_curator_v1_" + groupKey()) || "";
         wrapNativeFiles();
         observeGroup();
+        installBackToTop();
         patchShowPage();
         setTimeout(boot, 1000);
     }
