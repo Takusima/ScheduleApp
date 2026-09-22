@@ -3344,8 +3344,48 @@ function scrollSettingsTop() {
 }
 
 function scrollScheduleTopIfNeeded() {
-    const activeScreen = document.querySelector(".screen-page.active");
-    if (activeScreen && activeScreen.scrollTop > 260) activeScreen.scrollTo({top:0, behavior:"smooth"});
+    const screen = document.querySelector(".screen");
+    if (screen && screen.scrollTop > 260) {
+        screen.scrollTo({top:0, behavior:"smooth"});
+    }
+}
+
+let dayListGestureMoved = false;
+let dayListGestureStartX = 0;
+let dayListGestureStartY = 0;
+let dayListIgnoreNextClick = false;
+
+function initDayListGestureGuard() {
+    const list = document.getElementById("dayList");
+    if (!list || list.dataset.gestureGuard === "1") return;
+    list.dataset.gestureGuard = "1";
+
+    list.addEventListener("pointerdown", function(event) {
+        dayListGestureMoved = false;
+        dayListGestureStartX = event.clientX;
+        dayListGestureStartY = event.clientY;
+    }, {passive:true});
+
+    list.addEventListener("pointermove", function(event) {
+        const dx = Math.abs(event.clientX - dayListGestureStartX);
+        const dy = Math.abs(event.clientY - dayListGestureStartY);
+        if (dx > 12 || dy > 12) dayListGestureMoved = true;
+    }, {passive:true});
+
+    list.addEventListener("pointerup", function() {
+        dayListIgnoreNextClick = dayListGestureMoved;
+    }, {passive:true});
+
+    list.addEventListener("pointercancel", function() {
+        dayListIgnoreNextClick = true;
+    }, {passive:true});
+
+    list.addEventListener("click", function(event) {
+        if (!dayListIgnoreNextClick) return;
+        dayListIgnoreNextClick = false;
+        event.preventDefault();
+        event.stopPropagation();
+    }, true);
 }
 
 function togglePersonalData() {
@@ -3536,6 +3576,7 @@ document.addEventListener(
     "DOMContentLoaded",
     function() {
 
+        initDayListGestureGuard();
         updateCalendar();
         updateBellSchedule();
         updateSettingsInfo();
