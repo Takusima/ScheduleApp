@@ -2412,7 +2412,6 @@ function updateDays() {
                     updateSchedule();
                     updateCalendar();
                     updateBellSchedule();
-                    scrollScheduleTopIfNeeded();
                 };
 
             container.appendChild(
@@ -3350,67 +3349,6 @@ function scrollSettingsTop() {
     if (screen) screen.scrollTo({top:0, behavior:"smooth"});
 }
 
-function scrollScheduleTopIfNeeded() {
-    const screen = document.querySelector(".screen");
-    if (screen && screen.scrollTop > 260) {
-        screen.scrollTo({top:0, behavior:"smooth"});
-    }
-}
-
-let dayListGestureMoved = false;
-let dayListGestureStartX = 0;
-let dayListGestureStartY = 0;
-let dayListIgnoreNextClick = false;
-
-function initDayListGestureGuard() {
-    const list = document.getElementById("dayList");
-    if (!list || list.dataset.gestureGuard === "1") return;
-    list.dataset.gestureGuard = "1";
-
-    list.addEventListener("pointerdown", function(event) {
-        dayListGestureMoved = false;
-        dayListIgnoreNextClick = false;
-        dayListGestureStartX = event.clientX;
-        dayListGestureStartY = event.clientY;
-    }, {passive:true});
-
-    list.addEventListener("pointermove", function(event) {
-        const dx = Math.abs(event.clientX - dayListGestureStartX);
-        const dy = Math.abs(event.clientY - dayListGestureStartY);
-
-        /*
-         * Любое заметное движение означает жест, а не нажатие.
-         * CSS touch-action: pan-x не даёт вертикальному жесту
-         * прокинуться в родительский .screen.
-         */
-        if (dx > 10 || dy > 10) {
-            dayListGestureMoved = true;
-            dayListIgnoreNextClick = true;
-        }
-    }, {passive:true});
-
-    list.addEventListener("pointerup", function() {
-        if (dayListGestureMoved) {
-            dayListIgnoreNextClick = true;
-        }
-    }, {passive:true});
-
-    list.addEventListener("pointercancel", function() {
-        dayListGestureMoved = true;
-        dayListIgnoreNextClick = true;
-    }, {passive:true});
-
-    list.addEventListener("click", function(event) {
-        if (!dayListIgnoreNextClick) return;
-
-        dayListIgnoreNextClick = false;
-        dayListGestureMoved = false;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        event.stopPropagation();
-    }, true);
-}
-
 function togglePersonalData() {
     const card = document.querySelector(".personal-data-card");
     const button = card && card.querySelector(".personal-data-head");
@@ -3599,7 +3537,6 @@ document.addEventListener(
     "DOMContentLoaded",
     function() {
 
-        initDayListGestureGuard();
         updateCalendar();
         updateBellSchedule();
         updateSettingsInfo();
