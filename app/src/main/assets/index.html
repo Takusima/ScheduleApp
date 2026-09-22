@@ -1037,7 +1037,7 @@ const state = {
 
     dates: [],
 
-    selectedGroup: localStorage.getItem("scheduleapp.onboarding.v1") === "1" ? (localStorage.getItem("scheduleapp.selectedGroup.v1") || "") : "",
+    selectedGroup: localStorage.getItem("scheduleapp.selectedGroup.v1") || "",
 
     selectedDate: "",
 
@@ -1877,18 +1877,19 @@ function buildData() {
     updateSettingsInfo();
 
     /*
-     * Если выбранной группы больше нет —
-     * выбираем первую.
+     * Поведение как в рабочем коммите #171:
+     * на первом запуске автоматически берём первую
+     * реальную группу из Excel. После выбора она
+     * сохраняется и group_lock.js может закрепить её.
      */
     if (
         !state.selectedGroup ||
-        !state.groups.includes(
-            state.selectedGroup
-        )
+        !state.groups.includes(state.selectedGroup)
     ) {
-
-        state.selectedGroup = "";
-
+        state.selectedGroup = state.groups[0] || "";
+        if (state.selectedGroup) {
+            localStorage.setItem("scheduleapp.selectedGroup.v1", state.selectedGroup);
+        }
         updateGroupSelectValue();
     }
 
