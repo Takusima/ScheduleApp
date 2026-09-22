@@ -218,6 +218,10 @@ function onChangeCapture(event) {
 document.addEventListener('change', onChangeCapture, true);
 
 function applyFixedGroup() {
+  // На первом запуске группа всегда выбирается вручную.
+  // Даже старый fixedGroup из предыдущей версии не должен подставляться.
+  if (localStorage.getItem('scheduleapp.onboarding.v1') !== '1') return;
+
   const found = readControl();
   if (found) control = found;
   if (!control) return;
