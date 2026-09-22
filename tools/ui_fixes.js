@@ -34,5 +34,15 @@ const run=()=>{
 };
 const sync=()=>{const nav=document.querySelector('.bottom-nav');if(!nav)return;const all=[...nav.querySelectorAll('.nav-btn')],i=all.findIndex(x=>x.classList.contains('active'));if(i>=0)nav.style.setProperty('--nav-index',String(i));};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{run();sync()});else{run();sync()}
-new MutationObserver(()=>{run();sync()}).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+let observerQueued=false;
+const scheduleObserver=()=>{
+  if(observerQueued)return;
+  observerQueued=true;
+  requestAnimationFrame(()=>{
+    observerQueued=false;
+    run();
+    sync();
+  });
+};
+new MutationObserver(scheduleObserver).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
 })();
