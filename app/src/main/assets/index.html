@@ -215,14 +215,6 @@
             gap: 8px;
             overflow-x: auto;
             padding: 1px 2px 7px;
-            /*
-             * Полоса дней должна перехватывать только горизонтальный жест.
-             * Вертикальный свайп здесь не должен прокручивать .screen.
-             */
-            touch-action: none;
-            overscroll-behavior: contain;
-            user-select: none;
-            -webkit-user-select: none;
         }
 
         .day-list::-webkit-scrollbar {
@@ -2215,7 +2207,6 @@ document.getElementById(
 
         updateDays();
         updateSchedule();
-        initDayListTouchScroll();
         updateCalendar();
         updateBellSchedule();
         updateSettingsInfo();
@@ -2384,7 +2375,6 @@ function updateDays() {
                 );
 
             button.type = "button";
-            button.tabIndex = -1;
             button.className =
                 "day-btn" +
                 (
@@ -3351,77 +3341,6 @@ window.onLessonNotificationPermission = function(granted) {
 function scrollSettingsTop() {
     const screen = document.querySelector(".screen");
     if (screen) screen.scrollTo({top:0, behavior:"smooth"});
-}
-
-function initDayListTouchScroll() {
-    const list = document.getElementById("dayList");
-    if (!list || list.dataset.touchScroll === "1") return;
-    list.dataset.touchScroll = "1";
-
-    let startX = 0;
-    let startY = 0;
-    let startScrollLeft = 0;
-    let mode = "";
-    let moved = false;
-    let suppressClickUntil = 0;
-
-    list.addEventListener("focusin", function(event) {
-        if (event.target && event.target.classList && event.target.classList.contains("day-btn")) {
-            event.target.blur();
-        }
-    });
-
-    list.addEventListener("touchstart", function(event) {
-        if (!event.touches || !event.touches.length) return;
-        const touch = event.touches[0];
-        startX = touch.clientX;
-        startY = touch.clientY;
-        startScrollLeft = list.scrollLeft;
-        mode = "";
-        moved = false;
-    }, { passive: true });
-
-    list.addEventListener("touchmove", function(event) {
-        if (!event.touches || !event.touches.length) return;
-
-        const touch = event.touches[0];
-        const dx = touch.clientX - startX;
-        const dy = touch.clientY - startY;
-
-        if (!mode && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
-            mode = Math.abs(dx) >= Math.abs(dy) ? "horizontal" : "vertical";
-            moved = true;
-            suppressClickUntil = Date.now() + 350;
-        }
-
-        if (mode === "horizontal") {
-            event.preventDefault();
-            list.scrollLeft = startScrollLeft - dx;
-        } else if (mode === "vertical") {
-            // Полностью блокируем передачу вертикального жеста в .screen.
-            event.preventDefault();
-        }
-    }, { passive: false });
-
-    list.addEventListener("touchend", function() {
-        if (moved) {
-            suppressClickUntil = Date.now() + 350;
-        }
-    }, { passive: true });
-
-    list.addEventListener("touchcancel", function() {
-        moved = true;
-        suppressClickUntil = Date.now() + 350;
-    }, { passive: true });
-
-    list.addEventListener("click", function(event) {
-        if (Date.now() < suppressClickUntil) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            event.stopPropagation();
-            moved = false;
-        }
-    }, true);
 }
 
 function togglePersonalData() {
