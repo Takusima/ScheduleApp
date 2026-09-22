@@ -2383,6 +2383,8 @@ function updateDays() {
                     "button"
                 );
 
+            button.type = "button";
+            button.tabIndex = -1;
             button.className =
                 "day-btn" +
                 (
@@ -3362,6 +3364,12 @@ function initDayListTouchScroll() {
     let mode = "";
     let moved = false;
     let suppressClickUntil = 0;
+
+    list.addEventListener("focusin", function(event) {
+        if (event.target && event.target.classList && event.target.classList.contains("day-btn")) {
+            event.target.blur();
+        }
+    });
 
     list.addEventListener("touchstart", function(event) {
         if (!event.touches || !event.touches.length) return;
