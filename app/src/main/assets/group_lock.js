@@ -243,7 +243,7 @@ function attach() {
 
 window.addEventListener('scheduleapp:data-ready', () => setTimeout(attach, 0));
 window.addEventListener('load', () => setTimeout(attach, 0));
-setInterval(attach, 500);
+window.addEventListener('scheduleapp:data-ready', () => setTimeout(attach, 0));
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attach);
 else attach();
