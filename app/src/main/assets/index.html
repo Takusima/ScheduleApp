@@ -1037,7 +1037,7 @@ const state = {
 
     dates: [],
 
-    selectedGroup: localStorage.getItem("scheduleapp.selectedGroup.v1") || "",
+    selectedGroup: localStorage.getItem("scheduleapp.onboarding.v1") === "1" ? (localStorage.getItem("scheduleapp.selectedGroup.v1") || "") : "",
 
     selectedDate: "",
 
@@ -2032,7 +2032,14 @@ document.getElementById(
 
         state.selectedGroup =
             this.value;
-        localStorage.setItem("scheduleapp.selectedGroup.v1", state.selectedGroup || "");
+
+        if (state.selectedGroup) {
+            localStorage.setItem("scheduleapp.selectedGroup.v1", state.selectedGroup);
+            localStorage.setItem("scheduleapp.onboarding.v1", "1");
+        } else {
+            localStorage.removeItem("scheduleapp.selectedGroup.v1");
+            localStorage.removeItem("scheduleapp.onboarding.v1");
+        }
 
         document.getElementById(
             "currentGroupLabel"
@@ -3064,9 +3071,12 @@ function updateOnboarding() {
         modal.innerHTML = '<div class="modal-box"><div class="modal-title"><strong>Добро пожаловать! 👋</strong></div><div style="color:#b8afbd;font-size:13px;line-height:1.55;margin-bottom:16px">Привет! Это расписание для студентов КМК.<br><br>Сначала выбери свою учебную группу — приложение запомнит её и больше не будет подставлять чужую.</div><button class="wide-btn" id="welcomeChoose">Выбрать группу</button><div style="height:8px"></div><div style="color:#817987;font-size:11px;text-align:center;line-height:1.45">Если тебе понравится приложение, буду рад твоей поддержке ❤️</div></div>';
         document.body.appendChild(modal);
         modal.querySelector("#welcomeChoose").onclick = function() {
-            localStorage.setItem("scheduleapp.onboarding.v1", "1");
             modal.classList.remove("open");
-            document.getElementById("groupSelect").focus();
+            const select = document.getElementById("groupSelect");
+            if (select) {
+                select.focus();
+                try { select.click(); } catch (_) {}
+            }
         };
     }
 }
