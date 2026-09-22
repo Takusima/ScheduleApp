@@ -532,7 +532,8 @@
         .bell-row { display:grid; grid-template-columns:22px 1fr auto; gap:8px; align-items:center; padding:8px 9px; border-radius:12px; margin-top:5px; background:rgba(255,255,255,.035); }
         .bell-row.current { background:rgba(139,81,230,.20); border:1px solid rgba(177,130,255,.25); box-shadow:0 0 14px rgba(139,81,230,.16); }
         .bell-num { color:#9b91a4; font-size:10px; font-weight:800; }
-        .bell-time { font-size:12px; font-weight:800; }
+        .bell-time { display:flex; flex-direction:column; gap:3px; font-size:12px; font-weight:800; }
+        .bell-time span { display:block; white-space:nowrap; }
         .bell-status { color:#817987; font-size:9px; }
         .bell-row.current .bell-status { color:#c59aff; }
 
@@ -3323,19 +3324,38 @@ function getBellMode(dateString) {
     return preHoliday.has(key) ? "preholiday" : "weekday";
 }
 function bellRowsForMode(mode) {
-    if (mode === "saturday") return [["1","09:00","09:45"],["2","09:55","10:40"],["3","10:50","11:35"],["4","11:45","12:30"],["5","12:40","13:25"],["6","13:35","14:20"]];
-    if (mode === "preholiday") return [["1","09:00","10:00"],["2","10:10","11:10"],["3","11:20","12:20"],["4","12:30","13:30"]];
-    return [["1","09:00","09:45"],["2","09:55","10:40"],["3","10:50","11:35"],["4","11:45","12:30"],["5","12:40","13:25"]];
+    if (mode === "saturday") {
+        return [
+            ["1","09:00","09:45","09:55","10:40"],
+            ["2","10:50","11:35","11:45","12:30"],
+            ["3","12:40","13:25","13:35","14:20"]
+        ];
+    }
+    if (mode === "preholiday") {
+        return [["1","09:00","10:00"],["2","10:10","11:10"],["3","11:20","12:20"],["4","12:30","13:30"]];
+    }
+    return [
+        ["1","09:00","09:45","09:55","10:40"],
+        ["2","10:50","11:35","11:45","12:30"],
+        ["3","13:10","13:55","14:05","14:50"],
+        ["4","15:00","15:45","15:55","16:40"],
+        ["5","16:50","17:35","17:45","18:30"]
+    ];
 }
 function updateBellSchedule() {
     const card=document.getElementById("bellScheduleCard"), modeEl=document.getElementById("bellMode"), details=document.getElementById("bellDetails");
     if(!card||!modeEl||!details)return;
     const selected=state.selectedDate||todayKey(), mode=getBellMode(selected);
-    modeEl.textContent={weekday:"Будни · 10 пар",saturday:"Суббота · 6 пар",preholiday:"Предпраздничный день · 4 пары"}[mode];
+    modeEl.textContent={weekday:"Будни · 5 пар",saturday:"Суббота · 3 пары",preholiday:"Предпраздничный день · 4 пары"}[mode];
     const now=new Date(), minutes=now.getHours()*60+now.getMinutes();
     details.innerHTML=bellRowsForMode(mode).map(row=>{
-        const current=selected===todayKey()&&minutes>=timeToMinutes(row[1])&&minutes<timeToMinutes(row[2]);
-        return '<div class="bell-row'+(current?' current':'')+'"><div class="bell-num">'+row[0]+'</div><div class="bell-time">'+row[1]+'–'+row[2]+'</div><div class="bell-status">'+(current?'Сейчас':'')+'</div></div>';
+        const firstCurrent=selected===todayKey()&&minutes>=timeToMinutes(row[1])&&minutes<timeToMinutes(row[2]);
+        const secondCurrent=row[3]&&selected===todayKey()&&minutes>=timeToMinutes(row[3])&&minutes<timeToMinutes(row[4]);
+        const current=firstCurrent||secondCurrent;
+        const times=row[3]
+            ? '<span>'+row[1]+'–'+row[2]+'</span><span>'+row[3]+'–'+row[4]+'</span>'
+            : row[1]+'–'+row[2];
+        return '<div class="bell-row'+(current?' current':'')+'"><div class="bell-num">'+row[0]+'</div><div class="bell-time">'+times+'</div><div class="bell-status">'+(current?'Сейчас':'')+'</div></div>';
     }).join("");
 }
 function toggleBellSchedule() {
