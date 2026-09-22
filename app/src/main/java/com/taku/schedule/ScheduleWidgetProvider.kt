@@ -375,18 +375,4 @@ private object WidgetDataParser {
         return (next - now).coerceAtLeast(15_000L)
     }
 
-    private fun toMinutes(value: String): Int {
-        val match = Regex("^(\\d{1,2})[:.](\\d{2})").find(value.trim()) ?: return 9999
-        return match.groupValues[1].toInt() * 60 + match.groupValues[2].toInt()
-    }
-
-    private fun formatCountdown(now: Int, target: Int): String {
-        var delta = target - now
-        if (delta < 0) delta += 24 * 60
-        return if (delta >= 60) {
-            "${delta / 60} ч ${delta % 60} мин"
-        } else {
-            "$delta мин"
-        }
-    }
 }
