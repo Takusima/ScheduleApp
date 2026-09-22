@@ -77,12 +77,39 @@ jobs:
           path: ScheduleApp-release.apk
           if-no-files-found: error
 
-      - name: Publish GitHub Release
+      - name: Publish versioned GitHub Releases
         env:
           GH_TOKEN: ${{ github.token }}
+          V01_COMMIT: b3c3d7687cac80e7081b78667a6a80d83fdee605
         run: |
-          TAG="release-${{ github.run_number }}"
-          gh release create "$TAG" ScheduleApp-release.apk \
-            --title "ScheduleApp Release ${{ github.run_number }}" \
-            --notes "Готовая версия ScheduleApp. APK можно скачать напрямую из раздела Releases." \
+          set -e
+
+          # Keep only the two supported release versions.
+          # 0.1 is the stable release built from commit #171.
+          # 0.2 is the current build from main.
+          OLD_APK="$RUNNER_TEMP/ScheduleApp-0.1.apk"
+          curl -L --fail --retry 3 \
+            -o "$OLD_APK" \
+            "https://github.com/Takusima/ScheduleApp/releases/download/release-171/ScheduleApp-release.apk"
+
+          for release in $(gh release list --limit 100 --json tagName --jq '.[].tagName'); do
+            if [ "$release" != "release-0.1" ] && [ "$release" != "release-0.2" ]; then
+              gh release delete "$release" --yes --cleanup-tag || true
+            fi
+          done
+
+          if gh release view release-0.1 >/dev/null 2>&1; then
+            gh release delete release-0.1 --yes --cleanup-tag || true
+          fi
+          gh release create release-0.1 "$OLD_APK" \
+            --target "$V01_COMMIT" \
+            --title "ScheduleApp 0.1" \
+            --notes-file CHANGELOG.md
+
+          if gh release view release-0.2 >/dev/null 2>&1; then
+            gh release delete release-0.2 --yes --cleanup-tag || true
+          fi
+          gh release create release-0.2 ScheduleApp-release.apk \
+            --title "ScheduleApp 0.2" \
+            --notes-file CHANGELOG.md \
             --latest
