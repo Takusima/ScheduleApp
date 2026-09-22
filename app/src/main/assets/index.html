@@ -215,6 +215,13 @@
             gap: 8px;
             overflow-x: auto;
             padding: 1px 2px 7px;
+            /*
+             * Полоса дней должна перехватывать только горизонтальный жест.
+             * Вертикальный свайп здесь не должен прокручивать .screen.
+             */
+            touch-action: pan-x;
+            overscroll-behavior-x: contain;
+            overscroll-behavior-y: none;
         }
 
         .day-list::-webkit-scrollbar {
@@ -3362,6 +3369,7 @@ function initDayListGestureGuard() {
 
     list.addEventListener("pointerdown", function(event) {
         dayListGestureMoved = false;
+        dayListIgnoreNextClick = false;
         dayListGestureStartX = event.clientX;
         dayListGestureStartY = event.clientY;
     }, {passive:true});
@@ -3369,21 +3377,36 @@ function initDayListGestureGuard() {
     list.addEventListener("pointermove", function(event) {
         const dx = Math.abs(event.clientX - dayListGestureStartX);
         const dy = Math.abs(event.clientY - dayListGestureStartY);
-        if (dx > 12 || dy > 12) dayListGestureMoved = true;
+
+        /*
+         * Любое заметное движение означает жест, а не нажатие.
+         * CSS touch-action: pan-x не даёт вертикальному жесту
+         * прокинуться в родительский .screen.
+         */
+        if (dx > 10 || dy > 10) {
+            dayListGestureMoved = true;
+            dayListIgnoreNextClick = true;
+        }
     }, {passive:true});
 
     list.addEventListener("pointerup", function() {
-        dayListIgnoreNextClick = dayListGestureMoved;
+        if (dayListGestureMoved) {
+            dayListIgnoreNextClick = true;
+        }
     }, {passive:true});
 
     list.addEventListener("pointercancel", function() {
+        dayListGestureMoved = true;
         dayListIgnoreNextClick = true;
     }, {passive:true});
 
     list.addEventListener("click", function(event) {
         if (!dayListIgnoreNextClick) return;
+
         dayListIgnoreNextClick = false;
+        dayListGestureMoved = false;
         event.preventDefault();
+        event.stopImmediatePropagation();
         event.stopPropagation();
     }, true);
 }
