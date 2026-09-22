@@ -56,8 +56,10 @@ function isGroupName(value) {
 }
 function findGroupsInSheet(rows) {
   const result = [];
-  const maxRows = Math.min(rows.length, 6);
-  for (let r = 0; r < maxRows; r++) {
+  const headerRows = Math.min(rows.length, 12);
+
+  // Основной формат КМК: в заголовке перед группой стоит «каб».
+  for (let r = 0; r < headerRows; r++) {
     const row = rows[r] || [];
     for (let c = 0; c < row.length - 1; c++) {
       const left = clean(row[c]);
@@ -67,6 +69,23 @@ function findGroupsInSheet(rows) {
       result.push({ name: right, column: c + 1 });
     }
   }
+
+  // Резервный вариант для новых таблиц, где «каб» не хранится
+  // рядом с названием группы. Ищем только явные названия групп,
+  // чтобы даты/время/числа не стали группами.
+  if (!result.length) {
+    for (let r = 0; r < headerRows; r++) {
+      const row = rows[r] || [];
+      for (let c = 0; c < row.length; c++) {
+        const value = clean(row[c]);
+        if (!/^(?:\d{1,2})\s+(?:класс|м\/с)$/i.test(value)) continue;
+        if (!isGroupName(value)) continue;
+        if (result.some(item => item.name === value)) continue;
+        result.push({ name: value, column: c });
+      }
+    }
+  }
+
   return result;
 }
 function parseLectureSheet(sheet, fileName) {
@@ -196,12 +215,10 @@ self.onmessage = async function(event) {
       }
     });
 
-    // Если лист "Лекции" отсутствует или пустой, не ломаем расписание:
-    // разбираем листы по фактической структуре "каб + группа + дата + время".
+    // Если «Лекции» не дал занятий, разбираем все листы по фактической
+    // структуре. Это возвращает совместимость со старыми и новыми Excel.
     if (!lessons.length) {
       workbook.SheetNames.forEach(sheetName => {
-        const name = normalize(sheetName);
-        if (name === 'лекции' || name.includes('лекци')) return;
         lessons.push(...parseFlexibleScheduleSheet(workbook.Sheets[sheetName], file.name));
       });
     }
