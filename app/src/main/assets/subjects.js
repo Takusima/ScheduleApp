@@ -492,7 +492,6 @@
         observeGroup();
         installBackToTop();
         patchShowPage();
-        setTimeout(boot, 1000);
     }
 
     if (document.readyState === "loading") {
