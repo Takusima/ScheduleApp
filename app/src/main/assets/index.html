@@ -418,6 +418,18 @@
         .notify-toggle { min-width:112px; height:38px; padding:0 11px; border-radius:11px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); color:#9d94a5; font-size:11px; font-weight:800; }
         .notify-toggle.on { color:var(--accent); background:var(--accentSoft); border-color:var(--accentBorder); }
         .notify-select { width:100%; height:40px; margin-top:9px; padding:0 11px; border-radius:11px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); color:inherit; outline:none; }
+        .transfer-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+        .transfer-btn { min-height:42px; border-radius:13px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); color:inherit; font-weight:750; font-size:11px; }
+        .transfer-btn.primary { background:linear-gradient(135deg,#8d54e9,#673aa7); border-color:transparent; color:#fff; box-shadow:0 7px 20px rgba(126,70,220,.18); }
+        .welcome-box { position:relative; overflow:hidden; }
+        .welcome-icon { width:54px; height:54px; display:flex; align-items:center; justify-content:center; border-radius:17px; margin-bottom:12px; background:var(--accentSoft); color:var(--accent); font-size:27px; border:1px solid var(--accentBorder); }
+        .welcome-title { font-size:20px; font-weight:850; letter-spacing:-.2px; }
+        .welcome-text { margin-top:9px; color:#b8afbd; font-size:13px; line-height:1.55; }
+        .welcome-support { margin-top:14px; padding:11px 12px; border-radius:13px; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.055); color:#9f95a8; font-size:11px; line-height:1.45; text-align:center; }
+        .welcome-support b { color:var(--accent); }
+        html[data-theme=light] .transfer-btn,.theme-light .transfer-btn{background:#eeeef2;color:#242128;border-color:rgba(0,0,0,.08)}
+        html[data-theme=light] .welcome-support,.theme-light .welcome-support{background:#f4f4f7;color:#6e6873;border-color:rgba(0,0,0,.07)}
+
         html[data-theme=light] .bell-card,html[data-theme=light] .break-card,.theme-light .bell-card,.theme-light .break-card{background:#fff!important;color:#201d24!important;border-color:rgba(0,0,0,.08)!important}
         html[data-theme=light] .bell-row,.theme-light .bell-row{background:rgba(0,0,0,.035)!important}
         html[data-theme=light] .notify-toggle,html[data-theme=light] .notify-select,.theme-light .notify-toggle,.theme-light .notify-select{background:#eeeef2!important;color:#242128!important;border-color:rgba(0,0,0,.08)!important}
@@ -1101,6 +1113,9 @@ const state = {
     calendarSelected: "",
 
     loading: false,
+
+    startupSilent: true,
+    userOperation: false,
 
     // Parsed Excel is kept in memory so repeated sync callbacks
     // do not parse the same ~1 MB workbook again.
@@ -2857,6 +2872,9 @@ function updateSettingsInfo() {
 
 function syncCloud() {
 
+    state.userOperation = true;
+    state.startupSilent = false;
+
     if (
         state.loading
     ) {
@@ -2901,6 +2919,9 @@ function syncCloud() {
 
 function loadOffline() {
 
+    state.userOperation = true;
+    state.startupSilent = false;
+
     setStatus(
         "Открываю сохранённые Excel..."
     );
@@ -2941,6 +2962,9 @@ function openSource() {
 
 
 function pickExcel() {
+
+    state.userOperation = true;
+    state.startupSilent = false;
 
     if (
         window.Android &&
@@ -3005,6 +3029,8 @@ window.onNativeFiles =
 
             state.loading =
                 false;
+            state.startupSilent = false;
+            state.userOperation = false;
 
             const button =
                 document.getElementById(
@@ -3074,16 +3100,19 @@ window.onNativeError =
         button.textContent =
             "Обновить";
 
+        const msg = message || "Не удалось выполнить операцию.";
         setStatus(
-            message ||
-            "Произошла ошибка"
+            state.startupSilent
+                ? "Расписание пока не загружено • добавьте Excel в Настройках"
+                : msg
         );
 
-        showMessage(
-            "Ошибка",
-            message ||
-            "Не удалось выполнить операцию."
-        );
+        if (!state.startupSilent || state.userOperation) {
+            showMessage(
+                "Ошибка",
+                msg
+            );
+        }
     };
 
 
@@ -3171,7 +3200,7 @@ function getBellMode(dateString) {
 function bellRowsForMode(mode) {
     if (mode === "saturday") return [["1","09:00","09:45"],["2","09:55","10:40"],["3","10:50","11:35"],["4","11:45","12:30"],["5","12:40","13:25"],["6","13:35","14:20"]];
     if (mode === "preholiday") return [["1","09:00","10:00"],["2","10:10","11:10"],["3","11:20","12:20"],["4","12:30","13:30"]];
-    return [["1","09:00","09:45"],["2","09:55","10:40"],["3","10:50","11:35"],["4","11:45","12:30"],["5","13:10","13:55"],["6","14:05","14:50"],["7","15:00","15:45"],["8","15:55","16:40"],["9","16:50","17:35"],["10","17:45","18:30"]];
+    return [["1","09:00","09:45"],["2","09:55","10:40"],["3","10:50","11:35"],["4","11:45","12:30"],["5","12:40","13:25"]];
 }
 function updateBellSchedule() {
     const card=document.getElementById("bellScheduleCard"), modeEl=document.getElementById("bellMode"), details=document.getElementById("bellDetails");
@@ -3282,23 +3311,98 @@ function scrollSettingsTop() {
     if (screen) screen.scrollTo({top:0, behavior:"smooth"});
 }
 
+function personalGroupKey(group) {
+    const s = clean(group || "");
+    return s ? s.toLowerCase().replace(/[^a-zа-я0-9]+/gi, "_") : "none";
+}
+
+function readPersonalData() {
+    const group = state.selectedGroup || localStorage.getItem("scheduleapp.selectedGroup.v1") || "";
+    let teachers = {};
+    let curator = "";
+    try { teachers = JSON.parse(localStorage.getItem("scheduleapp_subjects_v2_" + personalGroupKey(group)) || "{}"); } catch (_) {}
+    curator = localStorage.getItem("scheduleapp_curator_v1_" + personalGroupKey(group)) || "";
+    let favorites = [];
+    try { favorites = JSON.parse(localStorage.getItem("scheduleapp.favorites.v1") || "[]"); } catch (_) {}
+    return { version:1, app:"scheduleapp", group, teachers, curator, favorites };
+}
+
+function exportPersonalData() {
+    const payload = JSON.stringify(readPersonalData(), null, 2);
+    if (window.Android && typeof Android.savePersonalData === "function") {
+        Android.savePersonalData(payload);
+    } else {
+        showMessage("Перенос данных","Сохранение файла доступно в Android-приложении.");
+    }
+}
+
+function importPersonalData() {
+    if (window.Android && typeof Android.pickPersonalData === "function") {
+        Android.pickPersonalData();
+    } else {
+        showMessage("Перенос данных","Импорт файла доступен в Android-приложении.");
+    }
+}
+
+window.onPersonalDataImported = function(json) {
+    try {
+        const data = typeof json === "string" ? JSON.parse(json) : json;
+        if (!data || data.app !== "scheduleapp") throw new Error("Это не файл данных «Расписание».");
+        const group = clean(data.group || state.selectedGroup || "");
+        if (!group) throw new Error("В файле не указана учебная группа.");
+
+        const gk = personalGroupKey(group);
+        const teachers = data.teachers && typeof data.teachers === "object" && !Array.isArray(data.teachers) ? data.teachers : {};
+        const curator = clean(data.curator || "");
+        const favorites = Array.isArray(data.favorites) ? data.favorites.map(clean).filter(Boolean) : [];
+
+        localStorage.setItem("scheduleapp.selectedGroup.v1", group);
+        localStorage.setItem("scheduleapp_subjects_v2_" + gk, JSON.stringify(teachers));
+        localStorage.setItem("scheduleapp_curator_v1_" + gk, curator);
+
+        let currentFavorites = [];
+        try { currentFavorites = JSON.parse(localStorage.getItem("scheduleapp.favorites.v1") || "[]"); } catch (_) {}
+        const mergedFavorites = Array.from(new Set(currentFavorites.concat(favorites)));
+        localStorage.setItem("scheduleapp.favorites.v1", JSON.stringify(mergedFavorites));
+
+        state.selectedGroup = group;
+        updateGroupSelectValue();
+        updateSettingsInfo();
+        window.dispatchEvent(new Event("scheduleapp:personal-data-imported"));
+        if (typeof window.renderSubjectsScreen === "function") window.renderSubjectsScreen();
+        showMessage("Данные восстановлены", "Преподаватели, куратор и избранные предметы сохранены для группы «" + group + "».");
+    } catch (e) {
+        showMessage("Ошибка импорта", e.message || "Не удалось импортировать данные.");
+    }
+};
+
+window.onPersonalDataExported = function(ok, message) {
+    if (ok) showMessage("Файл сохранён", message || "Личные данные сохранены.");
+    else showMessage("Ошибка", message || "Не удалось сохранить файл.");
+}
+
 function updateOnboarding() {
-    const done = localStorage.getItem("scheduleapp.onboarding.v1") === "1";
-    if (done || state.selectedGroup || !state.groups.length) return;
+    let seen = false;
+    try {
+        seen = !!(window.Android && typeof Android.hasSeenWelcome === "function" && Android.hasSeenWelcome());
+    } catch (_) {}
+    if (seen || localStorage.getItem("scheduleapp.onboarding.v1") === "1") return;
+    if (state.selectedGroup) {
+        try { Android.markWelcomeSeen && Android.markWelcomeSeen(); } catch (_) {}
+        localStorage.setItem("scheduleapp.onboarding.v1", "1");
+        return;
+    }
     let modal = document.getElementById("welcomeModal");
     if (!modal) {
         modal = document.createElement("div");
         modal.id = "welcomeModal";
         modal.className = "modal open";
-        modal.innerHTML = '<div class="modal-box"><div class="modal-title"><strong>Добро пожаловать! 👋</strong></div><div style="color:#b8afbd;font-size:13px;line-height:1.55;margin-bottom:16px">Привет! Это расписание для студентов КМК.<br><br>Сначала выбери свою учебную группу — приложение запомнит её и больше не будет подставлять чужую.</div><button class="wide-btn" id="welcomeChoose">Выбрать группу</button><div style="height:8px"></div><div style="color:#817987;font-size:11px;text-align:center;line-height:1.45">Если тебе понравится приложение, буду рад твоей поддержке ❤️</div></div>';
+        modal.innerHTML = '<div class="modal-box welcome-box"><div class="welcome-icon">📚</div><div class="welcome-title">Добро пожаловать! 👋</div><div class="welcome-text">Привет! Это «Расписание» для студентов КМК.<br><br>Здесь будут пары, календарь, виджет и сохранённые личные настройки.</div><div class="welcome-support">Если приложение тебе понравится, поддержка автора будет очень приятна ❤️<br><b>Автор: Takusima</b></div><button class="wide-btn" id="welcomeChoose" style="margin-top:13px">Понятно</button></div>';
         document.body.appendChild(modal);
+        try { Android.markWelcomeSeen && Android.markWelcomeSeen(); } catch (_) {}
+        localStorage.setItem("scheduleapp.onboarding.v1", "1");
         modal.querySelector("#welcomeChoose").onclick = function() {
             modal.classList.remove("open");
-            const select = document.getElementById("groupSelect");
-            if (select) {
-                select.focus();
-                try { select.click(); } catch (_) {}
-            }
         };
     }
 }
@@ -3356,6 +3460,7 @@ document.addEventListener(
         updateBellSchedule();
         updateSettingsInfo();
         updateLessonNotificationUI();
+        updateOnboarding();
 
         setTimeout(
             startApp,
