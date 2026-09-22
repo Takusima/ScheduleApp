@@ -12,6 +12,7 @@ class BootReceiver : BroadcastReceiver() {
             intent?.action == Intent.ACTION_MY_PACKAGE_REPLACED
         ) {
             ScheduleSync.scheduleNextSunday(context)
+            LessonReminderScheduler.reschedule(context)
         }
     }
 }
