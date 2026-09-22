@@ -124,12 +124,72 @@
         const style = document.createElement("style");
         style.id = "subjectsStyle";
         style.textContent = `
+            #subjectsPage {
+                position:relative;
+            }
+            #subjectsPage .subjects-back {
+                width:100%; height:44px; margin-bottom:12px;
+                border-radius:14px;
+                background:rgba(255,255,255,.055);
+                border:1px solid rgba(255,255,255,.07);
+                color:#d8d0df; font-weight:700; cursor:pointer;
+            }
             #subjectsPage .subject-search {
                 width:100%; height:46px; border-radius:14px;
                 padding:0 14px; color:#fff;
                 background:rgba(255,255,255,.055);
                 border:1px solid rgba(255,255,255,.07);
                 outline:none; margin-bottom:12px;
+            }
+            .subjects-open-btn {
+                position:absolute;
+                top:0; right:0;
+                width:48px; height:48px;
+                border-radius:16px;
+                background:linear-gradient(135deg,#a66cff,#7945d6);
+                border:1px solid rgba(255,255,255,.10);
+                box-shadow:0 8px 24px rgba(126,70,220,.30), inset 0 1px rgba(255,255,255,.18);
+                color:#fff; cursor:pointer;
+                overflow:hidden;
+                isolation:isolate;
+                transition:transform .18s ease, box-shadow .25s ease;
+            }
+            .subjects-open-btn::before {
+                content:"";
+                position:absolute;
+                width:80px; height:80px;
+                left:-16px; top:-48px;
+                border-radius:45%;
+                background:rgba(255,255,255,.20);
+                filter:blur(1px);
+                animation:subjectsWater 2.8s ease-in-out infinite;
+                z-index:-1;
+            }
+            .subjects-open-btn::after {
+                content:"";
+                position:absolute;
+                inset:0;
+                border-radius:inherit;
+                background:linear-gradient(115deg,transparent 25%,rgba(255,255,255,.22) 48%,transparent 70%);
+                transform:translateX(-120%);
+                animation:subjectsShine 3.6s ease-in-out infinite;
+            }
+            .subjects-open-btn:active {
+                transform:scale(.94);
+            }
+            .subjects-open-icon {
+                position:relative;
+                z-index:2;
+                font-size:21px;
+                line-height:1;
+            }
+            @keyframes subjectsWater {
+                0%,100% { transform:translate3d(-3px,0,0) rotate(-4deg); border-radius:45% 55% 50% 50%; }
+                50% { transform:translate3d(12px,7px,0) rotate(7deg); border-radius:55% 45% 42% 58%; }
+            }
+            @keyframes subjectsShine {
+                0%,55% { transform:translateX(-120%); }
+                75%,100% { transform:translateX(120%); }
             }
             #subjectsPage .subject-search::placeholder { color:#746c79; }
             .subjects-count { color:#817987; font-size:11px; margin:0 4px 10px; }
@@ -176,19 +236,26 @@
                 <h1>Предметы</h1>
                 <p>Предметы из расписания и преподаватели</p>
             </div>
+            <button class="subjects-back" onclick="showPage('schedule')">‹&nbsp;&nbsp; Назад к расписанию</button>
             <input id="subjectSearch" class="subject-search" type="search" placeholder="🔎  Найти предмет">
             <div id="subjectsCount" class="subjects-count"></div>
             <div id="subjectsList" class="subject-list"></div>
         `;
         settings.parentNode.insertBefore(page, settings);
 
-        const nav = document.querySelector(".bottom-nav");
-        const button = document.createElement("button");
-        button.id = "navSubjects";
-        button.className = "nav-btn";
-        button.innerHTML = '<span class="icon">📚</span><span class="label">Предметы</span>';
-        button.onclick = function () { showPage("subjects"); };
-        nav.insertBefore(button, document.getElementById("navSettings"));
+        const scheduleTitle = document.querySelector("#schedulePage .top-title");
+        if (scheduleTitle && !document.getElementById("openSubjectsButton")) {
+            const button = document.createElement("button");
+            button.id = "openSubjectsButton";
+            button.className = "subjects-open-btn";
+            button.setAttribute("aria-label", "Предметы");
+            button.title = "Предметы";
+            button.innerHTML = '<span class="subjects-open-icon">📚</span>';
+            button.onclick = function () { showPage("subjects"); };
+            scheduleTitle.style.position = "relative";
+            scheduleTitle.style.paddingRight = "58px";
+            scheduleTitle.appendChild(button);
+        }
 
         const search = document.getElementById("subjectSearch");
         search.addEventListener("input", render);
@@ -303,13 +370,15 @@
         function patched(page) {
             if (page === "subjects") {
                 document.querySelectorAll(".screen-page").forEach(function (x) { x.classList.remove("active"); });
-                document.querySelectorAll(".nav-btn").forEach(function (x) { x.classList.remove("active"); });
                 document.getElementById("subjectsPage").classList.add("active");
-                document.getElementById("navSubjects").classList.add("active");
+                const nav = document.querySelector(".bottom-nav");
+                if (nav) nav.style.display = "none";
                 render();
                 collectFromFiles();
                 return;
             }
+            const nav = document.querySelector(".bottom-nav");
+            if (nav) nav.style.display = "";
             original(page);
         }
         patched.__subjectsPatched = true;
