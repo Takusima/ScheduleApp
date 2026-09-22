@@ -352,6 +352,28 @@
             display: block;
         }
 
+        /* Расписание звонков */
+        .bell-card {
+            margin-top: 14px;
+            padding: 14px;
+            border-radius: 19px;
+            background: linear-gradient(145deg,#241735,#17111f);
+            border: 1px solid rgba(166,108,255,.20);
+            box-shadow: 0 10px 28px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.05);
+        }
+        .bell-head { display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:pointer; }
+        .bell-title { font-size:14px; font-weight:800; }
+        .bell-mode { margin-top:3px; color:#817987; font-size:10px; }
+        .bell-toggle { width:34px; height:34px; border-radius:11px; background:rgba(255,255,255,.07); color:#b984ff; font-size:19px; }
+        .bell-details { display:none; margin-top:11px; }
+        .bell-card.open .bell-details { display:block; }
+        .bell-row { display:grid; grid-template-columns:22px 1fr auto; gap:8px; align-items:center; padding:8px 9px; border-radius:12px; margin-top:5px; background:rgba(255,255,255,.035); }
+        .bell-row.current { background:rgba(139,81,230,.20); border:1px solid rgba(177,130,255,.25); box-shadow:0 0 14px rgba(139,81,230,.16); }
+        .bell-num { color:#9b91a4; font-size:10px; font-weight:800; }
+        .bell-time { font-size:12px; font-weight:800; }
+        .bell-status { color:#817987; font-size:9px; }
+        .bell-row.current .bell-status { color:#c59aff; }
+
         /* Calendar */
 
         .calendar-card {
@@ -674,6 +696,17 @@
 
             </div>
 
+            <div id="bellScheduleCard" class="bell-card">
+                <div class="bell-head" onclick="toggleBellSchedule()">
+                    <div>
+                        <div class="bell-title">🔔 Расписание звонков</div>
+                        <div id="bellMode" class="bell-mode">Будни · 5 пар</div>
+                    </div>
+                    <button type="button" id="bellToggle" class="bell-toggle" aria-label="Раскрыть расписание звонков">⌄</button>
+                </div>
+                <div id="bellDetails" class="bell-details"></div>
+            </div>
+
             <div class="schedule-list">
 
                 <div
@@ -886,7 +919,7 @@
             class="nav-btn"
             onclick="showPage('calendar')"
         >
-            <span class="icon">□</span>
+            <span class="icon">📅</span>
             <span class="label">Календарь</span>
         </button>
 
@@ -1802,7 +1835,7 @@ function buildData() {
     updateDays();
     updateSchedule();
     updateCalendar();
-    updateSettingsInfo();
+    updateSettingsInfo();\n    updateBellSchedule();
 
     /*
      * Если выбранной группы больше нет —
