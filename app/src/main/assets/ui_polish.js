@@ -10,7 +10,7 @@ body{overscroll-behavior-x:none}
 #cf-bg{z-index:1!important;filter:var(--cf-bg-filter,none);transform:var(--cf-bg-transform,none)}
 #app{position:relative!important;z-index:2!important}
 #schedule-effects{z-index:997!important}.winter-atmosphere,#winter-atmosphere{z-index:998!important}
-html[data-cf-glass=true] .primary-btn,html[data-cf-glass=true] .secondary-btn,html[data-cf-glass=true] .wide-btn,html[data-cf-glass=true] .outline-btn,html[data-cf-glass=true] .day-btn,html[data-cf-glass=true] .nav-btn,html[data-cf-glass=true] .copt,html[data-cf-glass=true] .rem-opt,html[data-cf-glass=true] .sound-opt,html[data-cf-glass=true] .cf-btn{
+html[data-cf-glass=true] .primary-btn,html[data-cf-glass=true] .secondary-btn,html[data-cf-glass=true] .wide-btn,html[data-cf-glass=true] .outline-btn,html[data-cf-glass=true] .day-btn,html[data-cf-glass=true] .copt,html[data-cf-glass=true] .rem-opt,html[data-cf-glass=true] .sound-opt,html[data-cf-glass=true] .cf-btn{
 position:relative;isolation:isolate;overflow:hidden!important;
 background:linear-gradient(135deg,rgba(255,255,255,calc(var(--cf-op,.07) + .045)),rgba(255,255,255,var(--cf-op,.07)))!important;
 backdrop-filter:blur(var(--cf-blur,20px)) saturate(var(--cf-sat,160%)) contrast(1.04)!important;
@@ -19,7 +19,7 @@ border:1px solid rgba(255,255,255,var(--cf-br,.16))!important;
 box-shadow:inset 0 1px 0 rgba(255,255,255,.38),inset 0 -1px 0 rgba(255,255,255,.08),0 9px 24px rgba(0,0,0,.16)!important;
 transition:transform var(--cf-gdur,.5s) cubic-bezier(.25,1,.5,1),background var(--cf-gdur,.5s) ease,border-color var(--cf-gdur,.5s) ease,box-shadow var(--cf-gdur,.5s) ease!important
 }
-html[data-cf-glass=true] .primary-btn::before,html[data-cf-glass=true] .secondary-btn::before,html[data-cf-glass=true] .wide-btn::before,html[data-cf-glass=true] .outline-btn::before,html[data-cf-glass=true] .day-btn::before,html[data-cf-glass=true] .nav-btn::before,html[data-cf-glass=true] .cf-btn::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.24),transparent 48%);opacity:.65;z-index:-1}
+html[data-cf-glass=true] .primary-btn::before,html[data-cf-glass=true] .secondary-btn::before,html[data-cf-glass=true] .wide-btn::before,html[data-cf-glass=true] .outline-btn::before,html[data-cf-glass=true] .day-btn::before,html[data-cf-glass=true] .cf-btn::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.24),transparent 48%);opacity:.65;z-index:-1}
 html[data-cf-glass=true] .primary-btn:active,html[data-cf-glass=true] .secondary-btn:active,html[data-cf-glass=true] .wide-btn:active,html[data-cf-glass=true] .outline-btn:active,html[data-cf-glass=true] .day-btn:active,html[data-cf-glass=true] .nav-btn:active,html[data-cf-glass=true] .cf-btn:active{transform:scale(.975)!important}
 html[data-cf-glass=true] .primary-btn{background:linear-gradient(135deg,rgba(166,108,255,.45),rgba(121,69,214,.30))!important}
 html[data-cf-glass=true] .nav-btn.active{background:transparent!important}
