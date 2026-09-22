@@ -504,7 +504,11 @@
         curator = localStorage.getItem("scheduleapp_curator_v1_" + groupKey()) || "";
         wrapNativeFiles();
         observeGroup();
-        installBackToTop();
+        window.addEventListener("scheduleapp:personal-data-imported", function () {
+            subjects = load();
+            curator = localStorage.getItem("scheduleapp_curator_v1_" + groupKey()) || "";
+            render();
+        });
     }
 
     if (document.readyState === "loading") {
