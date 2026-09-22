@@ -247,19 +247,6 @@
         `;
         settings.parentNode.insertBefore(page, settings);
 
-        const schedulePage = document.getElementById("schedulePage");
-        if (schedulePage && !document.getElementById("openSubjectsButton")) {
-            const button = document.createElement("button");
-            button.id = "openSubjectsButton";
-            button.className = "subjects-open-btn";
-            button.setAttribute("aria-label", "Предметы");
-            button.title = "Предметы";
-            button.innerHTML = '<span class="subjects-open-icon">📚</span>';
-            button.onclick = function () { showPage("subjects"); };
-            schedulePage.style.position = "relative";
-            schedulePage.insertBefore(button, schedulePage.firstChild);
-        }
-
         const search = document.getElementById("subjectSearch");
         search.addEventListener("input", render);
 
@@ -463,26 +450,10 @@
         });
     }
 
-    function patchShowPage() {
-        if (typeof window.showPage !== "function" || window.showPage.__subjectsPatched) return;
-        const original = window.showPage;
-        function patched(page) {
-            if (page === "subjects") {
-                document.querySelectorAll(".screen-page").forEach(function (x) { x.classList.remove("active"); });
-                document.getElementById("subjectsPage").classList.add("active");
-                const nav = document.querySelector(".bottom-nav");
-                if (nav) nav.style.display = "none";
-                render();
-                collectFromFiles();
-                return;
-            }
-            const nav = document.querySelector(".bottom-nav");
-            if (nav) nav.style.display = "";
-            original(page);
-        }
-        patched.__subjectsPatched = true;
-        window.showPage = patched;
-    }
+    window.renderSubjectsScreen = function () {
+        render();
+        collectFromFiles();
+    };
 
     function boot() {
         inject();
@@ -491,7 +462,6 @@
         wrapNativeFiles();
         observeGroup();
         installBackToTop();
-        patchShowPage();
     }
 
     if (document.readyState === "loading") {
