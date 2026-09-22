@@ -1464,7 +1464,7 @@ function isGroupName(value) {
      * 11 класс
      * и т.д.
      */
-    return /^\d/.test(text) && !/^10\s*м\/с$/i.test(text);
+    return /^\d/.test(text);
 }
 
 
@@ -1486,7 +1486,7 @@ function isLectureSheet(sheetName) {
 
 function findGroupsInSheet(rows) {
     const result = [];
-    const maxRows = Math.min(rows.length, 6);
+    const maxRows = Math.min(rows.length, 12);
 
     for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
         const row = rows[rowIndex] || [];
@@ -1681,6 +1681,56 @@ function parseLectureSheet(
 
 
 /* =========================================================
+   РЕЗЕРВНЫЙ ПАРСИНГ ЛИСТОВ
+   ========================================================= */
+
+function parseFlexibleScheduleSheet(sheet, fileName) {
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true });
+    if (!rows || !rows.length) return [];
+
+    const groups = findGroupsInSheet(rows);
+    if (!groups.length) return [];
+
+    const fallbackYear = inferYearFromFileName(fileName);
+    const lessons = [];
+    let currentDate = null;
+
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+        const row = rows[rowIndex] || [];
+
+        let rowDate = null;
+        for (let column = 0; column < Math.min(3, row.length); column++) {
+            const candidate = parseDateValue(row[column], fallbackYear);
+            if (candidate) { rowDate = candidate; break; }
+        }
+        if (rowDate) {
+            currentDate = dateKey(rowDate.getFullYear(), rowDate.getMonth() + 1, rowDate.getDate());
+        }
+
+        let time = "";
+        for (let column = 0; column < Math.min(5, row.length); column++) {
+            const candidate = formatTime(row[column]);
+            if (/^\\d{2}:\\d{2}$/.test(candidate)) { time = candidate; break; }
+        }
+        if (!currentDate || !time) continue;
+
+        groups.forEach(group => {
+            const lesson = clean(row[group.column]);
+            if (!lesson) return;
+            const normalizedLesson = normalize(lesson);
+            if (normalizedLesson === "каб" || normalizedLesson === normalize(group.name)) return;
+
+            const room = group.column > 0 && normalize(clean(row[group.column - 1])) !== "каб"
+                ? clean(row[group.column - 1]) : "";
+
+            lessons.push({ date: currentDate, group: group.name, time, lesson, room, file: fileName });
+        });
+    }
+    return lessons;
+}
+
+
+/* =========================================================
    ПАРСИНГ EXCEL-ФАЙЛА
    ========================================================= */
 
@@ -1709,15 +1759,19 @@ function parseXlsxFile(
 
         const result = [];
 
-        workbook.SheetNames.forEach(
-            sheetName => {
-                if (!isLectureSheet(sheetName)) return;
+        workbook.SheetNames.forEach(sheetName => {
+            if (!isLectureSheet(sheetName)) return;
+            const sheet = workbook.Sheets[sheetName];
+            result.push(...parseLectureSheet(sheet, file.name));
+        });
 
-                const sheet = workbook.Sheets[sheetName];
-                const lessons = parseLectureSheet(sheet, file.name);
-                result.push(...lessons);
-            }
-        );
+        // Новые таблицы КМК могут не иметь листа «Лекции».
+        // Если основной разбор ничего не дал, пробуем фактическую структуру всех листов.
+        if (!result.length) {
+            workbook.SheetNames.forEach(sheetName => {
+                result.push(...parseFlexibleScheduleSheet(workbook.Sheets[sheetName], file.name));
+            });
+        }
 
         // Keep the cache bounded so repeated imports cannot grow memory forever.
         if (state.parseCache.size >= 8) {
