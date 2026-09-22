@@ -30,6 +30,9 @@ class MainActivity : AppCompatActivity() {
     private val backgroundDir by lazy { File(filesDir, "schedule_background") }
     private val openExcel = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (!uris.isNullOrEmpty()) importSelectedFiles(uris) }
     private val openBackground = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) importBackground(uri) }
+    private val openPersonalData = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) importPersonalData(uri) }
+    private val createPersonalData = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri -> if (uri != null) writePersonalData(uri) }
+    @Volatile private var pendingPersonalDataExport: String? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -131,6 +134,23 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun loadCached() { thread { try { val f = ScheduleFileSelector.select(ScheduleRepository.readCachedFiles(this@MainActivity)); if (f.isEmpty()) sendError("Сохранённого расписания пока нет") else sendFiles(f, "Сохранённое расписание • выбрана неделя по дате") } catch (e: Exception) { sendError(e.message ?: "Не удалось открыть сохранённое расписание") } } }
         @JavascriptInterface fun pickExcel() { runOnUiThread { openExcel.launch(arrayOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel")) } }
         @JavascriptInterface fun pickBackground() { runOnUiThread { openBackground.launch(arrayOf("image/*")) } }
+        @JavascriptInterface fun pickPersonalData() {
+            runOnUiThread {
+                openPersonalData.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+            }
+        }
+        @JavascriptInterface fun savePersonalData(json: String) {
+            pendingPersonalDataExport = json
+            runOnUiThread { createPersonalData.launch("scheduleapp-backup.json") }
+        }
+        @JavascriptInterface fun hasSeenWelcome(): Boolean =
+            getSharedPreferences("app_install_state", MODE_PRIVATE).getBoolean("welcome_seen_v1", false)
+        @JavascriptInterface fun markWelcomeSeen() {
+            getSharedPreferences("app_install_state", MODE_PRIVATE)
+                .edit()
+                .putBoolean("welcome_seen_v1", true)
+                .apply()
+        }
         @JavascriptInterface fun clearBackground() { thread { try { File(backgroundDir, "current").delete(); File(backgroundDir, "current.mime").delete() } catch (_: Exception) {}; runOnUiThread { web.evaluateJavascript("window.clearScheduleBackground&&window.clearScheduleBackground()", null) } } }
         @JavascriptInterface fun openSource() { runOnUiThread { try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ScheduleRepository.PUBLIC_URL))) } catch (_: Exception) {} } }
         @JavascriptInterface fun openTelegram() { runOnUiThread { val a = Uri.parse("tg://resolve?domain=takusima"); val b = Uri.parse("https://t.me/takusima"); try { startActivity(Intent(Intent.ACTION_VIEW, a)) } catch (_: Exception) { try { startActivity(Intent(Intent.ACTION_VIEW, b)) } catch (_: Exception) {} } } }
@@ -168,6 +188,41 @@ class MainActivity : AppCompatActivity() {
         }
         @JavascriptInterface fun areLessonNotificationsEnabled(): Boolean =
             LessonReminderScheduler.isEnabled(this@MainActivity)
+    }
+
+    private fun importPersonalData(uri: Uri) {
+        thread {
+            try {
+                val content = contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                    ?: throw IllegalStateException("Не удалось прочитать файл данных")
+                if (content.length > 2_000_000) throw IllegalArgumentException("Файл данных слишком большой")
+                val js = "window.onPersonalDataImported&&window.onPersonalDataImported(" + JSONObject.quote(content) + ")"
+                runOnUiThread { if (::web.isInitialized) web.evaluateJavascript(js, null) }
+            } catch (e: Exception) {
+                sendError(e.message ?: "Не удалось импортировать личные данные")
+            }
+        }
+    }
+
+    private fun writePersonalData(uri: Uri) {
+        val json = pendingPersonalDataExport
+        pendingPersonalDataExport = null
+        if (json == null) return
+        thread {
+            try {
+                contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(json.toByteArray(Charsets.UTF_8))
+                    out.flush()
+                } ?: throw IllegalStateException("Не удалось открыть файл для сохранения")
+                val js = "window.onPersonalDataExported&&window.onPersonalDataExported(true," +
+                    JSONObject.quote("Личные данные сохранены в выбранный файл.") + ")"
+                runOnUiThread { if (::web.isInitialized) web.evaluateJavascript(js, null) }
+            } catch (e: Exception) {
+                val js = "window.onPersonalDataExported&&window.onPersonalDataExported(false," +
+                    JSONObject.quote(e.message ?: "Не удалось сохранить файл.") + ")"
+                runOnUiThread { if (::web.isInitialized) web.evaluateJavascript(js, null) }
+            }
+        }
     }
 
     private fun importBackground(uri: Uri) { thread { try { backgroundDir.mkdirs(); val name = queryDisplayName(uri)?.lowercase() ?: "background.jpg"; val mime = contentResolver.getType(uri) ?: when { name.endsWith(".gif") -> "image/gif"; name.endsWith(".webp") -> "image/webp"; name.endsWith(".png") -> "image/png"; else -> "image/jpeg" }; val tmp = File(backgroundDir, "background.tmp"); contentResolver.openInputStream(uri)?.use { input -> tmp.outputStream().use { out -> input.copyTo(out, 64 * 1024) } } ?: throw IllegalStateException("Не удалось прочитать изображение"); val current = File(backgroundDir, "current"); if (current.exists()) current.delete(); if (!tmp.renameTo(current)) { tmp.copyTo(current, true); tmp.delete() }; File(backgroundDir, "current.mime").writeText(mime); val url = "https://appassets.androidplatform.net/background/current?v=${current.lastModified()}"; runOnUiThread { web.evaluateJavascript("window.setScheduleBackground&&window.setScheduleBackground(${JSONObject.quote(url)},${JSONObject.quote(name)})", null) } } catch (e: Exception) { sendError(e.message ?: "Не удалось установить фон") } } }
