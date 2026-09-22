@@ -1382,7 +1382,7 @@ function isGroupName(value) {
      * 11 класс
      * и т.д.
      */
-    return /^\d/.test(text);
+    return /^\d/.test(text) && !/^10\s*м\/с$/i.test(text);
 }
 
 
@@ -1542,6 +1542,10 @@ function parseLectureSheet(
                 );
 
             if (!lesson) {
+                return;
+            }
+
+            if (/классн(?:ый|ые)?\s*час/i.test(lesson)) {
                 return;
             }
 
@@ -2988,6 +2992,24 @@ function closeMessage(
 /* =========================================================
    ЗАПУСК
    ========================================================= */
+
+function updateOnboarding() {
+    const done = localStorage.getItem("scheduleapp.onboarding.v1") === "1";
+    if (done || state.selectedGroup || !state.groups.length) return;
+    let modal = document.getElementById("welcomeModal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "welcomeModal";
+        modal.className = "modal open";
+        modal.innerHTML = '<div class="modal-box"><div class="modal-title"><strong>Добро пожаловать! 👋</strong></div><div style="color:#b8afbd;font-size:13px;line-height:1.55;margin-bottom:16px">Привет! Это расписание для студентов КМК.<br><br>Сначала выбери свою учебную группу — приложение запомнит её и больше не будет подставлять чужую.</div><button class="wide-btn" id="welcomeChoose">Выбрать группу</button><div style="height:8px"></div><div style="color:#817987;font-size:11px;text-align:center;line-height:1.45">Если тебе понравится приложение, буду рад твоей поддержке ❤️</div></div>';
+        document.body.appendChild(modal);
+        modal.querySelector("#welcomeChoose").onclick = function() {
+            localStorage.setItem("scheduleapp.onboarding.v1", "1");
+            modal.classList.remove("open");
+            document.getElementById("groupSelect").focus();
+        };
+    }
+}
 
 function startApp() {
 
