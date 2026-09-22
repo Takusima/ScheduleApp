@@ -156,9 +156,9 @@ function finishApply() {
         });
         Android.setLessonReminders(
           true,
-          Number(saved.minutes) || 10,
+          (saved.minutes === undefined || saved.minutes === null || Number.isNaN(Number(saved.minutes)) ? 10 : Number(saved.minutes)),
           group,
-          saved.sound || 'alarm',
+          saved.sound || 'default',
           JSON.stringify(payload)
         );
       }
