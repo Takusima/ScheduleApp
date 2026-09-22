@@ -401,8 +401,23 @@
         .bell-title { font-size:14px; font-weight:800; }
         .bell-mode { margin-top:3px; color:#817987; font-size:10px; }
         .bell-toggle { width:34px; height:34px; border-radius:11px; background:rgba(255,255,255,.07); color:#b984ff; font-size:19px; }
-        .bell-details { display:none; margin-top:11px; }
-        .bell-card.open .bell-details { display:block; }
+        .bell-details { display:block; max-height:0; margin-top:0; opacity:0; overflow:hidden; transform:translateY(-5px); transition:max-height .38s cubic-bezier(.22,.75,.2,1),margin-top .28s ease,opacity .25s ease,transform .38s cubic-bezier(.22,.75,.2,1); }
+        .bell-card.open .bell-details { max-height:820px; margin-top:11px; opacity:1; transform:none; }
+        .bell-row { opacity:.82; transform:translateY(-2px); transition:opacity .25s ease,transform .3s ease,background .25s ease; }
+        .bell-card.open .bell-row { opacity:1; transform:none; }
+        .bell-row:nth-child(1){transition-delay:.01s}.bell-row:nth-child(2){transition-delay:.02s}.bell-row:nth-child(3){transition-delay:.03s}.bell-row:nth-child(4){transition-delay:.04s}.bell-row:nth-child(5){transition-delay:.05s}.bell-row:nth-child(6){transition-delay:.06s}.bell-row:nth-child(7){transition-delay:.07s}.bell-row:nth-child(8){transition-delay:.08s}.bell-row:nth-child(9){transition-delay:.09s}.bell-row:nth-child(10){transition-delay:.10s}
+        .lesson-bell { margin-top:3px; color:#8f829d; font-size:9px; font-weight:700; }
+        .lesson-current { border-color:rgba(177,130,255,.28)!important; background:linear-gradient(145deg,rgba(139,81,230,.17),#151119)!important; }
+        .lesson-current-badge { display:inline-flex; margin-top:6px; padding:4px 7px; border-radius:8px; background:var(--accentSoft); color:var(--accent); font-size:9px; font-weight:800; }
+        .lesson-progress { height:3px; margin-top:7px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,.055); }
+        .lesson-progress > span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,var(--accent),#d5b6ff); transition:width .35s ease; }
+        .break-card { display:flex; align-items:center; gap:9px; margin:2px 4px 9px; padding:9px 11px; border-radius:13px; background:rgba(255,255,255,.025); border:1px dashed rgba(166,108,255,.14); color:#827889; font-size:10px; }
+        .break-card.current { background:rgba(139,81,230,.08); border-style:solid; border-color:rgba(166,108,255,.18); color:#b79bcf; }
+        .break-dot { width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accentSoft); flex:0 0 auto; }
+        .notify-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .notify-toggle { min-width:112px; height:38px; padding:0 11px; border-radius:11px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); color:#9d94a5; font-size:11px; font-weight:800; }
+        .notify-toggle.on { color:var(--accent); background:var(--accentSoft); border-color:var(--accentBorder); }
+        .notify-select { width:100%; height:40px; margin-top:9px; padding:0 11px; border-radius:11px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); color:inherit; outline:none; }
         .bell-row { display:grid; grid-template-columns:22px 1fr auto; gap:8px; align-items:center; padding:8px 9px; border-radius:12px; margin-top:5px; background:rgba(255,255,255,.035); }
         .bell-row.current { background:rgba(139,81,230,.20); border:1px solid rgba(177,130,255,.25); box-shadow:0 0 14px rgba(139,81,230,.16); }
         .bell-num { color:#9b91a4; font-size:10px; font-weight:800; }
@@ -873,6 +888,21 @@
 
             </div>
 
+            <div class="settings-card" id="lessonNotificationsCard">
+                <h3>🔔 Уведомления о парах</h3>
+                <p>Приложение напомнит о начале выбранной пары. Настройка хранится отдельно от расписания.</p>
+                <div class="notify-row">
+                    <span id="notifyState" style="color:#817987;font-size:11px">Выключены</span>
+                    <button type="button" id="notifyToggle" class="notify-toggle" onclick="toggleLessonNotifications()">Включить</button>
+                </div>
+                <select id="notifyLead" class="notify-select" onchange="saveLessonNotificationDelay()">
+                    <option value="0">В начале пары</option>
+                    <option value="5">За 5 минут</option>
+                    <option value="10" selected>За 10 минут</option>
+                </select>
+                <div id="notifyHint" style="margin-top:7px;color:#817987;font-size:10px;line-height:1.4">На Android 13+ потребуется разрешить уведомления один раз.</div>
+            </div>
+
             <div class="settings-card">
 
                 <h3>Mail Облако</h3>
@@ -918,6 +948,12 @@
                     <span id="settingsDates">0</span>
                 </div>
 
+            </div>
+
+            <div class="settings-card">
+                <h3>Навигация</h3>
+                <p>Быстрый возврат к началу страницы настроек.</p>
+                <button type="button" class="outline-btn" onclick="scrollSettingsTop()">↑ Вернуться наверх</button>
             </div>
 
             <div class="settings-card">
@@ -2344,40 +2380,56 @@ function updateSchedule() {
     }
 
     if (!state.selectedGroup || !state.selectedDate) {
-        container.innerHTML =
-            '<div class="empty">Выберите группу и дату.</div>';
+        container.innerHTML = '<div class="empty">Выберите группу и дату.</div>';
         return;
     }
 
-    const lessons =
-        state.data[state.selectedDate] &&
-        state.data[state.selectedDate][state.selectedGroup];
-
+    const lessons = state.data[state.selectedDate] && state.data[state.selectedDate][state.selectedGroup];
     if (!lessons || !lessons.length) {
         container.innerHTML =
-            '<div class="empty">На ' +
-            escapeHtml(formatDateRu(state.selectedDate)) +
-            ' занятий нет.</div>';
+            '<div class="empty">На ' + escapeHtml(formatDateRu(state.selectedDate)) + ' занятий нет.</div>';
         return;
     }
 
-    const html = lessons.map(lesson => {
-        const room = lesson.room
-            ? "Кабинет: " + escapeHtml(lesson.room)
-            : "Кабинет не указан";
+    const bellRows = bellRowsForMode(getBellMode(state.selectedDate));
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    let html = "";
 
-        return '<div class="lesson">' +
-            '<div class="lesson-time">' + escapeHtml(lesson.time) + '</div>' +
+    lessons.forEach(function(lesson, index) {
+        const bell = bellRows[index] || null;
+        const nextBell = bellRows[index + 1] || null;
+        const start = bell ? timeToMinutes(bell[1]) : timeToMinutes(lesson.time);
+        const end = bell ? timeToMinutes(bell[2]) : (start + 45);
+        const isToday = state.selectedDate === todayKey();
+        const current = isToday && nowMinutes >= start && nowMinutes < end;
+        const progress = current ? Math.round(((nowMinutes - start) / Math.max(1, end - start)) * 100) : 0;
+        const room = lesson.room ? "Кабинет: " + escapeHtml(lesson.room) : "Кабинет не указан";
+
+        html += '<div class="lesson' + (current ? ' lesson-current' : '') + '">' +
+            '<div class="lesson-time">' + escapeHtml(lesson.time) +
+            (bell ? '<div class="lesson-bell">Звонок ' + escapeHtml(bell[1]) + '–' + escapeHtml(bell[2]) + '</div>' : '') +
+            '</div>' +
             '<div>' +
             '<div class="lesson-name">' + escapeHtml(lesson.lesson) + '</div>' +
             '<div class="lesson-room">' + room + '</div>' +
-            '</div>' +
-            '</div>';
-    }).join("");
+            (current ? '<div class="lesson-current-badge">Сейчас • ' + progress + '%</div><div class="lesson-progress"><span style="width:' + progress + '%"></span></div>' : '') +
+            '</div></div>';
+
+        const nextStart = nextBell ? timeToMinutes(nextBell[1]) : timeToMinutes((lessons[index + 1] || {}).time);
+        if (index < lessons.length - 1 && end < nextStart) {
+            const breakMinutes = nextStart - end;
+            const breakCurrent = isToday && nowMinutes >= end && nowMinutes < nextStart;
+            const breakElapsed = breakCurrent ? nowMinutes - end : 0;
+            html += '<div class="break-card' + (breakCurrent ? ' current' : '') + '">' +
+                '<span class="break-dot"></span>' +
+                '<span>' + (breakCurrent ? 'Перемена • идёт ' + breakElapsed + ' мин' : 'Перемена • ' + breakMinutes + ' мин') +
+                ' <b>до ' + escapeHtml(nextBell ? nextBell[1] : (lessons[index + 1] || {}).time) + '</b></span></div>';
+        }
+    });
 
     container.innerHTML = html;
 }
-
 /* =========================================================
    КАЛЕНДАРЬ
    ========================================================= */
@@ -3121,7 +3173,7 @@ function updateBellSchedule() {
     const card=document.getElementById("bellScheduleCard"), modeEl=document.getElementById("bellMode"), details=document.getElementById("bellDetails");
     if(!card||!modeEl||!details)return;
     const selected=state.selectedDate||todayKey(), mode=getBellMode(selected);
-    modeEl.textContent={weekday:"Будни · 5 пар",saturday:"Суббота · 3 пары",preholiday:"Предпраздничный день · 4 пары"}[mode];
+    modeEl.textContent={weekday:"Будни · 10 пар",saturday:"Суббота · 6 пар",preholiday:"Предпраздничный день · 4 пары"}[mode];
     const now=new Date(), minutes=now.getHours()*60+now.getMinutes();
     details.innerHTML=bellRowsForMode(mode).map(row=>{
         const current=selected===todayKey()&&minutes>=timeToMinutes(row[1])&&minutes<timeToMinutes(row[2]);
@@ -3132,13 +3184,99 @@ function toggleBellSchedule() {
     const card=document.getElementById("bellScheduleCard"), toggle=document.getElementById("bellToggle");
     if(!card)return;
     const open=card.classList.toggle("open");
-    if(toggle)toggle.textContent=open?"⌃":"⌄";
+    if(toggle){
+        toggle.textContent=open?"⌃":"⌄";
+        toggle.setAttribute("aria-expanded",String(open));
+        toggle.setAttribute("aria-label",open?"Свернуть расписание звонков":"Раскрыть расписание звонков");
+    }
 }
 function startBellSchedule(){ updateBellSchedule(); }
 
 /* =========================================================
    ЗАПУСК
    ========================================================= */
+
+function buildLessonReminderPayload() {
+    if (typeof state === "undefined" || !state.data || !state.selectedGroup) return [];
+    const out = [];
+    Object.keys(state.data).forEach(function(date) {
+        const list = state.data[date] && state.data[date][state.selectedGroup];
+        if (!Array.isArray(list)) return;
+        list.forEach(function(item) {
+            if (!item || !item.time || !item.lesson) return;
+            out.push({
+                date: date,
+                time: item.time,
+                lesson: item.lesson,
+                room: item.room || "",
+                group: state.selectedGroup
+            });
+        });
+    });
+    return out;
+}
+
+function getNotificationSettings() {
+    let data = {enabled:false,minutes:10};
+    try { data = Object.assign(data, JSON.parse(localStorage.getItem("scheduleapp.reminders.v2") || "{}")); } catch (_) {}
+    data.minutes = Number(data.minutes) || 0;
+    return data;
+}
+
+function updateLessonNotificationUI() {
+    const settings = getNotificationSettings();
+    const stateEl = document.getElementById("notifyState");
+    const button = document.getElementById("notifyToggle");
+    const select = document.getElementById("notifyLead");
+    if (select) select.value = String(settings.minutes);
+    if (!stateEl || !button) return;
+    const enabled = !!settings.enabled;
+    stateEl.textContent = enabled ? "Уведомления включены" : "Выключены";
+    button.textContent = enabled ? "Выключить" : "Включить";
+    button.classList.toggle("on", enabled);
+}
+
+function saveLessonNotificationDelay() {
+    const settings = getNotificationSettings();
+    const select = document.getElementById("notifyLead");
+    settings.minutes = select ? Number(select.value) : settings.minutes;
+    localStorage.setItem("scheduleapp.reminders.v2", JSON.stringify(settings));
+    updateLessonNotificationUI();
+    if (settings.enabled && window.Android && typeof Android.setLessonReminders === "function") {
+        Android.setLessonReminders(true, settings.minutes, state.selectedGroup || "", "default", JSON.stringify(buildLessonReminderPayload()));
+    }
+}
+
+function toggleLessonNotifications() {
+    const settings = getNotificationSettings();
+    const enable = !settings.enabled;
+    const select = document.getElementById("notifyLead");
+    settings.minutes = select ? Number(select.value) : settings.minutes;
+    settings.enabled = enable;
+    localStorage.setItem("scheduleapp.reminders.v2", JSON.stringify(settings));
+
+    if (window.Android && typeof Android.configureLessonNotifications === "function") {
+        Android.configureLessonNotifications(enable, settings.minutes);
+    }
+    if (enable && window.Android && typeof Android.setLessonReminders === "function") {
+        Android.setLessonReminders(true, settings.minutes, state.selectedGroup || "", "default", JSON.stringify(buildLessonReminderPayload()));
+    }
+    updateLessonNotificationUI();
+}
+
+window.onLessonNotificationPermission = function(granted) {
+    const settings = getNotificationSettings();
+    if (settings.enabled && !granted) {
+        settings.enabled = false;
+        localStorage.setItem("scheduleapp.reminders.v2", JSON.stringify(settings));
+    }
+    updateLessonNotificationUI();
+};
+
+function scrollSettingsTop() {
+    const screen = document.querySelector(".screen");
+    if (screen) screen.scrollTo({top:0, behavior:"smooth"});
+}
 
 function updateOnboarding() {
     const done = localStorage.getItem("scheduleapp.onboarding.v1") === "1";
@@ -3213,6 +3351,7 @@ document.addEventListener(
         updateCalendar();
         updateBellSchedule();
         updateSettingsInfo();
+        updateLessonNotificationUI();
 
         setTimeout(
             startApp,
