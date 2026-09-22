@@ -2536,14 +2536,14 @@ function updateSchedule() {
         return;
     }
 
-    const bellRows = bellRowsForMode(getBellMode(state.selectedDate));
+    const bellSlots = bellSlotsForMode(getBellMode(state.selectedDate));
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
     let html = "";
 
     lessons.forEach(function(lesson, index) {
-        const bell = bellRows[index] || null;
-        const nextBell = bellRows[index + 1] || null;
+        const bell = bellSlots[index] || null;
+        const nextBell = bellSlots[index + 1] || null;
         const start = bell ? timeToMinutes(bell[1]) : timeToMinutes(lesson.time);
         const end = bell ? timeToMinutes(bell[2]) : (start + 45);
         const isToday = state.selectedDate === todayKey();
@@ -3322,6 +3322,38 @@ function getBellMode(dateString) {
     const preHoliday = new Set([]);
     const key = dateKey(date.getFullYear(), date.getMonth() + 1, date.getDate());
     return preHoliday.has(key) ? "preholiday" : "weekday";
+}
+function bellSlotsForMode(mode) {
+    if (mode === "saturday") {
+        return [
+            ["1","09:00","09:45"],
+            ["2","09:55","10:40"],
+            ["3","10:50","11:35"],
+            ["4","11:45","12:30"],
+            ["5","12:40","13:25"],
+            ["6","13:35","14:20"]
+        ];
+    }
+    if (mode === "preholiday") {
+        return [
+            ["1","09:00","10:00"],
+            ["2","10:10","11:10"],
+            ["3","11:20","12:20"],
+            ["4","12:30","13:30"]
+        ];
+    }
+    return [
+        ["1","09:00","09:45"],
+        ["2","09:55","10:40"],
+        ["3","10:50","11:35"],
+        ["4","11:45","12:30"],
+        ["5","13:10","13:55"],
+        ["6","14:05","14:50"],
+        ["7","15:00","15:45"],
+        ["8","15:55","16:40"],
+        ["9","16:50","17:35"],
+        ["10","17:45","18:30"]
+    ];
 }
 function bellRowsForMode(mode) {
     if (mode === "saturday") {
