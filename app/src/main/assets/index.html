@@ -303,6 +303,30 @@
             color: #a59baa;
         }
 
+        .subjects-main-card {
+            width: 100%; margin-top: 12px; padding: 15px;
+            display: flex; align-items: center; gap: 13px;
+            border-radius: 21px;
+            background: linear-gradient(145deg, #241735, #17111f);
+            border: 1px solid rgba(166,108,255,.18);
+            box-shadow: 0 8px 24px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.04);
+            color: #fff; text-align: left; cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform .16s ease, border-color .2s ease;
+        }
+        .subjects-main-card:active { transform: scale(.985); }
+        .subjects-main-card:hover { border-color: rgba(166,108,255,.34); }
+        .subjects-main-icon {
+            width: 46px; height: 46px; flex: 0 0 46px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 15px; background: rgba(139,81,230,.16);
+            color: #c49bff; font-size: 22px;
+        }
+        .subjects-main-content { min-width: 0; flex: 1; }
+        .subjects-main-title { font-size: 15px; font-weight: 800; }
+        .subjects-main-subtitle { margin-top: 4px; color: #817987; font-size: 11px; line-height: 1.35; }
+        .subjects-main-arrow { color: #746c79; font-size: 25px; line-height: 1; }
+
         .bottom-nav {
             position: fixed;
             left: 10px;
@@ -693,6 +717,15 @@
                 </div>
 
             </div>
+
+            <button type="button" class="subjects-main-card" onclick="showPage('subjects')" aria-label="Открыть раздел Предметы">
+                <div class="subjects-main-icon">📚</div>
+                <div class="subjects-main-content">
+                    <div class="subjects-main-title">Предметы</div>
+                    <div class="subjects-main-subtitle">Преподаватели, куратор и информация по предметам</div>
+                </div>
+                <div class="subjects-main-arrow">›</div>
+            </button>
 
             <div class="days-wrap">
 
