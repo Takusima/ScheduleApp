@@ -309,7 +309,8 @@
             right: 10px;
             bottom: 10px;
             height: 67px;
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             align-items: stretch;
             padding: 5px;
             border-radius: 21px;
@@ -322,26 +323,11 @@
             isolation: isolate;
         }
 
-        .bottom-nav .nav-indicator {
-            position: absolute;
-            z-index: 0;
-            top: 5px;
-            left: 5px;
-            width: 0;
-            height: calc(100% - 10px);
-            border-radius: 16px;
-            background: rgba(136, 74, 211, 0.16);
-            box-shadow: inset 0 1px rgba(255,255,255,0.035);
-            transition: left .24s cubic-bezier(.2,.8,.2,1), width .24s cubic-bezier(.2,.8,.2,1);
-            pointer-events: none;
-        }
-
         .nav-btn {
             position: relative;
             z-index: 1;
-            flex: 1 1 0;
             min-width: 0;
-            width: 0;
+            width: 100%;
             height: 100%;
             border-radius: 16px;
             background: transparent;
@@ -361,39 +347,22 @@
             font-size: 10px;
         }
 
-        .calendar-nav-icon {
-            position: relative;
-            width: 18px;
-            height: 17px;
-            margin: 1px auto 2px;
-            border: 1.6px solid currentColor;
-            border-radius: 4px;
-        }
-
-        .calendar-nav-icon::before {
-            content: "";
-            position: absolute;
-            left: -1.6px;
-            right: -1.6px;
-            top: 4px;
-            border-top: 1.6px solid currentColor;
-        }
-
-        .calendar-nav-icon::after {
-            content: "";
-            position: absolute;
-            left: 3px;
-            top: -4px;
-            width: 2px;
-            height: 5px;
-            border-radius: 2px;
-            background: currentColor;
-            box-shadow: 9px 0 0 currentColor;
+        .nav-svg {
+            width: 19px;
+            height: 19px;
+            margin: 1px auto 1px;
+            display: block;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.7;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
         .nav-btn.active {
             color: #b77dff;
-            background: transparent;
+            background: rgba(136, 74, 211, 0.16);
+            box-shadow: inset 0 1px rgba(255,255,255,0.035);
         }
 
         .screen-page {
@@ -956,15 +925,13 @@
     <!-- НИЖНЕЕ МЕНЮ -->
 
     <nav class="bottom-nav">
-        <span class="nav-indicator" aria-hidden="true"></span>
-
 
         <button
             id="navSchedule"
             class="nav-btn active"
             onclick="showPage('schedule')"
         >
-            <span class="icon">▣</span>
+            <svg class="nav-svg" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="3"></rect><line x1="8" y1="8" x2="16" y2="8"></line><line x1="8" y1="12" x2="16" y2="12"></line><line x1="8" y1="16" x2="13" y2="16"></line></svg>
             <span class="label">Расписание</span>
         </button>
 
@@ -973,7 +940,7 @@
             class="nav-btn"
             onclick="showPage('calendar')"
         >
-            <span class="icon calendar-nav-icon" aria-hidden="true"></span>
+            <svg class="nav-svg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="3"></rect><line x1="3.5" y1="9" x2="20.5" y2="9"></line><line x1="8" y1="2.5" x2="8" y2="6.5"></line><line x1="16" y1="2.5" x2="16" y2="6.5"></line><circle cx="8" cy="13.2" r=".6" fill="currentColor" stroke="none"></circle><circle cx="12" cy="13.2" r=".6" fill="currentColor" stroke="none"></circle><circle cx="16" cy="13.2" r=".6" fill="currentColor" stroke="none"></circle><circle cx="8" cy="16.7" r=".6" fill="currentColor" stroke="none"></circle><circle cx="12" cy="16.7" r=".6" fill="currentColor" stroke="none"></circle></svg>
             <span class="label">Календарь</span>
         </button>
 
@@ -982,7 +949,7 @@
             class="nav-btn"
             onclick="showPage('subjects')"
         >
-            <span class="icon">📚</span>
+            <svg class="nav-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v17H7.5A2.5 2.5 0 0 0 5 22z"></path><path d="M5 5.5v13"></path><path d="M9 7h6"></path><path d="M9 11h7"></path></svg>
             <span class="label">Предметы</span>
         </button>
 
@@ -991,7 +958,7 @@
             class="nav-btn"
             onclick="showPage('settings')"
         >
-            <span class="icon">⚙</span>
+            <svg class="nav-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 3.5v2"></path><path d="M12 18.5v2"></path><path d="m20.5 12h-2"></path><path d="M5.5 12h-2"></path><path d="m18.1 5.9-1.4 1.4"></path><path d="m7.3 16.7-1.4 1.4"></path><path d="m18.1 18.1-1.4-1.4"></path><path d="m7.3 7.3-1.4-1.4"></path></svg>
             <span class="label">Настройки</span>
         </button>
 
@@ -2644,23 +2611,6 @@ function goToSelectedCalendarDate() {
    СТРАНИЦЫ
    ========================================================= */
 
-function updateNavBubble() {
-    const nav = document.querySelector(".bottom-nav");
-    const indicator = nav ? nav.querySelector(".nav-indicator") : null;
-    if (!nav || !indicator) return;
-
-    const active = nav.querySelector(".nav-btn.active");
-    if (!active) return;
-
-    indicator.style.left = active.offsetLeft + "px";
-    indicator.style.width = active.offsetWidth + "px";
-}
-
-window.addEventListener("resize", updateNavBubble);
-window.addEventListener("load", function () {
-    setTimeout(updateNavBubble, 0);
-});
-
 function showPage(page) {
 
     const pages = {
@@ -2688,11 +2638,6 @@ function showPage(page) {
         subjects: 2,
         settings: 3
     };
-
-    const nav = document.querySelector(".bottom-nav");
-    if (nav && Object.prototype.hasOwnProperty.call(navIndex, page)) {
-        nav.style.setProperty("--nav-index", String(navIndex[page]));
-    }
 
     Object.values(
         pages
@@ -2746,7 +2691,6 @@ function showPage(page) {
         updateSettingsInfo();
     }
 
-    requestAnimationFrame(updateNavBubble);
 }
 
 
