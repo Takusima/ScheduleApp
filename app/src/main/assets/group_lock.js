@@ -11,6 +11,7 @@ let approvedValue = '';
 let dialogOpen = false;
 let applying = false;
 let lastKnownGroup = '';
+let interactionPreviousGroup = '';
 
 if (!document.getElementById(STYLE_ID)) {
   const style = document.createElement('style');
@@ -84,6 +85,7 @@ function fireApprovedChange(value) {
   setTimeout(() => {
     approvedValue = '';
     applying = false;
+    interactionPreviousGroup = '';
   }, 350);
 }
 
@@ -154,7 +156,7 @@ function restorePrevious(previous) {
 function requestGroup(requested) {
   if (!requested || dialogOpen || applying) return;
 
-  const previous = currentGroup();
+  const previous = interactionPreviousGroup || currentGroup();
   if (!previous || requested === previous) {
     if (typeof state !== 'undefined' && state.selectedGroup !== requested) {
       state.selectedGroup = requested;
@@ -230,6 +232,7 @@ function onChangeCapture(event) {
     return;
   }
   const requested = getSelectText(event.target);
+  if (!interactionPreviousGroup) interactionPreviousGroup = currentGroup();
   event.stopImmediatePropagation();
   event.preventDefault();
   if (control !== event.target) control = event.target;
@@ -238,12 +241,14 @@ function onChangeCapture(event) {
 
 document.addEventListener('pointerdown', event => {
   if (!isGroupSelect(event.target)) return;
-  lastKnownGroup = getSelectText(event.target);
+  interactionPreviousGroup = getSelectText(event.target);
+  lastKnownGroup = interactionPreviousGroup;
 }, true);
 
 document.addEventListener('focusin', event => {
   if (!isGroupSelect(event.target)) return;
-  lastKnownGroup = getSelectText(event.target);
+  interactionPreviousGroup = getSelectText(event.target);
+  lastKnownGroup = interactionPreviousGroup;
 }, true);
 
 document.addEventListener('change', onChangeCapture, true);
@@ -281,7 +286,6 @@ function attach() {
 
 window.addEventListener('scheduleapp:data-ready', () => setTimeout(attach, 0));
 window.addEventListener('load', () => setTimeout(attach, 0));
-window.addEventListener('scheduleapp:data-ready', () => setTimeout(attach, 0));
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attach);
 else attach();
