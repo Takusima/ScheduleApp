@@ -58,7 +58,7 @@ document.addEventListener('click', event => {
 setInterval(() => {
   const accent = getAccent();
   if (accent !== lastAccent) updateWidget(true);
-}, 1500);
+}, 5000);
 
 setInterval(() => updateWidget(true), 60000);
 
