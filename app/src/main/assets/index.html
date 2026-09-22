@@ -310,7 +310,7 @@
             bottom: 10px;
             height: 67px;
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             padding: 5px;
             border-radius: 21px;
             background: rgba(25, 19, 29, 0.96);
@@ -951,6 +951,15 @@
         >
             <span class="icon calendar-nav-icon" aria-hidden="true"></span>
             <span class="label">Календарь</span>
+        </button>
+
+        <button
+            id="navSubjects"
+            class="nav-btn"
+            onclick="showPage('subjects')"
+        >
+            <span class="icon">📚</span>
+            <span class="label">Предметы</span>
         </button>
 
         <button
@@ -2600,6 +2609,10 @@ function showPage(page) {
             document.getElementById(
                 "calendarPage"
             ),
+        subjects:
+            document.getElementById(
+                "subjectsPage"
+            ),
         settings:
             document.getElementById(
                 "settingsPage"
@@ -2646,6 +2659,18 @@ function showPage(page) {
 
         updateCalendar();
         updateBellSchedule();
+
+    } else if (page === "subjects") {
+
+        document.getElementById(
+            "navSubjects"
+        ).classList.add(
+            "active"
+        );
+
+        if (typeof renderSubjectsScreen === "function") {
+            renderSubjectsScreen();
+        }
 
     } else {
 
