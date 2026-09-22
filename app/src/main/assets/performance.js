@@ -8,6 +8,8 @@ let pendingFiles = [];
 let pendingLessons = [];
 let pendingStatus = '';
 let pendingNotify = false;
+let queuedNativeFiles = null;
+let queuedNativeStatus = '';
 
 function setLoadingDone(status) {
   if (typeof state !== 'undefined') state.loading = false;
@@ -117,6 +119,14 @@ function finishApply() {
     pendingNotify = false;
     window.__scheduleFilesForApply = null;
     setLoadingDone(status || 'Расписание загружено');
+
+    if (queuedNativeFiles) {
+      const queued = queuedNativeFiles;
+      const queuedStatus = queuedNativeStatus;
+      queuedNativeFiles = null;
+      queuedNativeStatus = '';
+      setTimeout(() => window.onNativeFiles(JSON.stringify(queued), queuedStatus), 0);
+    }
 
     if (notify && window.Android && typeof Android.notifyScheduleUpdated === 'function') {
       try {
@@ -239,8 +249,6 @@ function processNextFile() {
 }
 
 window.onNativeFiles = function(json, status) {
-  if (workerBusy) return;
-
   let parsed;
   try {
     parsed = typeof json === 'string' ? JSON.parse(json) : json;
@@ -254,6 +262,12 @@ window.onNativeFiles = function(json, status) {
 
   if (!parsed.every(x => x && x.name && (x.url || x.data))) {
     failExcel('Excel-файл пустой или повреждён.');
+    return;
+  }
+
+  if (workerBusy) {
+    queuedNativeFiles = parsed.slice();
+    queuedNativeStatus = status || 'Расписание загружено';
     return;
   }
 
