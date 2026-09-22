@@ -218,6 +218,12 @@
                 padding:28px 15px; border-radius:18px; text-align:center;
                 color:#817986; background:#141017; border:1px solid rgba(255,255,255,.05);
             }
+            .person-editor { padding:20px 18px 18px; background:linear-gradient(145deg,#241735,#17111f); border:1px solid rgba(166,108,255,.18); box-shadow:0 -12px 50px rgba(0,0,0,.55),0 0 28px rgba(126,70,220,.10),inset 0 1px rgba(255,255,255,.05); }
+            .person-editor .modal-title { margin-bottom:16px; }
+            .person-editor-subtitle { margin-top:4px; color:#817987; font-size:11px; line-height:1.35; }
+            .person-editor .teacher-input { background:rgba(10,7,14,.58); border-color:rgba(166,108,255,.18); box-shadow:inset 0 1px rgba(255,255,255,.025); }
+            .person-editor .teacher-input:focus { border-color:rgba(166,108,255,.48); box-shadow:0 0 0 3px rgba(139,81,230,.10); }
+            .person-editor .teacher-save { box-shadow:0 8px 22px rgba(126,70,220,.25),inset 0 1px rgba(255,255,255,.12); }
             .teacher-label { color:#817987; font-size:12px; margin-bottom:7px; }
             .teacher-input {
                 width:100%; height:48px; padding:0 14px; border-radius:14px;
@@ -301,12 +307,46 @@
     }
 
     function editCurator() {
-        const value = prompt("ФИО куратора", curator || "");
-        if (value !== null) {
-            curator = clean(value);
-            localStorage.setItem("scheduleapp_curator_v1_" + groupKey(), curator);
-            render();
+        let modal = document.getElementById("curatorModal");
+        if (!modal) {
+            modal = document.createElement("div");
+            modal.id = "curatorModal";
+            modal.className = "modal";
+            modal.innerHTML = `
+                <div class="modal-box person-editor" onclick="event.stopPropagation()">
+                    <div class="modal-title">
+                        <div>
+                            <strong>Куратор</strong>
+                            <div class="person-editor-subtitle">Введите ФИО классного руководителя</div>
+                        </div>
+                        <button class="close-btn" id="curatorClose" type="button" aria-label="Закрыть">×</button>
+                    </div>
+                    <div class="teacher-label">ФИО куратора</div>
+                    <input id="curatorInput" class="teacher-input" type="text" autocomplete="name" placeholder="Например, Иванов Иван Иванович">
+                    <button id="curatorSave" class="teacher-save" type="button">Сохранить</button>
+                </div>`;
+            document.body.appendChild(modal);
+            modal.addEventListener("click", function (e) {
+                if (e.target === modal) modal.classList.remove("open");
+            });
+            document.getElementById("curatorClose").onclick = function () {
+                modal.classList.remove("open");
+            };
         }
+
+        const input = document.getElementById("curatorInput");
+        input.value = curator || "";
+        document.getElementById("curatorSave").onclick = function () {
+            curator = clean(input.value);
+            localStorage.setItem("scheduleapp_curator_v1_" + groupKey(), curator);
+            modal.classList.remove("open");
+            render();
+        };
+        modal.classList.add("open");
+        setTimeout(function () {
+            input.focus();
+            input.select();
+        }, 80);
     }
 
     function editTeacher(name) {
