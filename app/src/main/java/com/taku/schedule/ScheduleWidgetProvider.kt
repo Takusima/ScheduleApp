@@ -211,28 +211,62 @@ private object WidgetDataParser {
         val nowMinutes = Calendar.getInstance().let {
             it.get(Calendar.HOUR_OF_DAY) * 60 + it.get(Calendar.MINUTE)
         }
+        val slots = BellSchedule.forDate(
+            Calendar.getInstance().get(Calendar.YEAR),
+            Calendar.getInstance().get(Calendar.MONTH) + 1,
+            Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+        )
         val next = todayLessons.firstOrNull { toMinutes(it.time) > nowMinutes }
-        val current = todayLessons.lastOrNull { toMinutes(it.time) <= nowMinutes }
 
-        return if (current != null && nowMinutes < toMinutes(current.time) + 90) {
-            val elapsed = (nowMinutes - toMinutes(current.time)).coerceAtLeast(0)
-            val progress = (elapsed / 90f * 100).roundToInt().coerceIn(0, 100)
-            WidgetState(
-                "КМК • ${current.group.ifBlank { group }}",
-                current.lesson,
-                buildMeta(current),
-                "Идёт • $progress%",
-                progress,
-                if (next != null) "Следующая ${next.time} • ${next.lesson}" else "Следующей пары сегодня нет"
-            )
-        } else if (next != null) {
+        for (index in todayLessons.indices) {
+            val lesson = todayLessons[index]
+            val start = toMinutes(lesson.time)
+            if (start == 9999) continue
+            val slot = slots.firstOrNull { it.startMinutes == start } ?: slots.getOrNull(index)
+            val end = slot?.endMinutes ?: (start + 45)
+
+            if (nowMinutes in start until end) {
+                val duration = (end - start).coerceAtLeast(1)
+                val elapsed = (nowMinutes - start).coerceAtLeast(0)
+                val progress = (elapsed.toFloat() / duration * 100f).roundToInt().coerceIn(0, 100)
+                return WidgetState(
+                    "КМК • ${lesson.group.ifBlank { group }}",
+                    lesson.lesson,
+                    buildMeta(lesson, slot),
+                    "Идёт • $progress%",
+                    progress,
+                    if (next != null) "Следующая ${next.time} • ${next.lesson}" else "Следующей пары сегодня нет"
+                )
+            }
+
+            val nextLesson = todayLessons.getOrNull(index + 1)
+            if (nextLesson != null && nowMinutes >= end) {
+                val nextStart = toMinutes(nextLesson.time)
+                if (nowMinutes < nextStart) {
+                    val totalBreak = (nextStart - end).coerceAtLeast(1)
+                    val elapsedBreak = (nowMinutes - end).coerceAtLeast(0)
+                    val progress = (elapsedBreak.toFloat() / totalBreak * 100f).roundToInt().coerceIn(0, 100)
+                    return WidgetState(
+                        "КМК • ${lesson.group.ifBlank { group }}",
+                        "Перемена",
+                        "Следующая • ${nextLesson.time} • ${nextLesson.lesson}",
+                        "Перемена • $elapsedBreak из $totalBreak мин",
+                        progress,
+                        "До следующей • ${formatCountdown(nowMinutes, nextStart)}"
+                    )
+                }
+            }
+        }
+
+        return if (next != null) {
+            val nextSlot = slots.firstOrNull { it.startMinutes == toMinutes(next.time) }
             WidgetState(
                 "КМК • ${next.group.ifBlank { group }}",
                 "Следующая пара",
-                "${next.time} • ${next.lesson}",
+                buildMeta(next, nextSlot),
                 "До начала • ${formatCountdown(nowMinutes, toMinutes(next.time))}",
                 0,
-                buildMeta(next)
+                buildMeta(next, nextSlot)
             )
         } else {
             WidgetState(
@@ -246,8 +280,100 @@ private object WidgetDataParser {
         }
     }
 
-    private fun buildMeta(lesson: WidgetLesson): String =
-        if (lesson.room.isBlank()) lesson.time else "${lesson.time} • каб. ${lesson.room}"
+    fun nextRefreshDelayMillis(json: String): Long {
+        val lessons = parseLessons(json)
+        val now = Calendar.getInstance()
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(now.time)
+        val todayLessons = lessons.filter { it.date == today }.sortedBy { toMinutes(it.time) }
+        val nowMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+        val slots = BellSchedule.forDate(
+            now.get(Calendar.YEAR),
+            now.get(Calendar.MONTH) + 1,
+            now.get(Calendar.DAY_OF_MONTH)
+        )
+
+        todayLessons.forEachIndexed { index, lesson ->
+            val start = toMinutes(lesson.time)
+            if (start == 9999) return@forEachIndexed
+            val slot = slots.firstOrNull { it.startMinutes == start } ?: slots.getOrNull(index)
+            val end = slot?.endMinutes ?: (start + 45)
+            if (nowMinutes in start until end) return alignedMinuteDelayMillis()
+
+            val nextStart = todayLessons.getOrNull(index + 1)?.let { toMinutes(it.time) }
+            if (nextStart != null && nowMinutes >= end && nowMinutes < nextStart) {
+                return alignedMinuteDelayMillis()
+            }
+        }
+
+        val nextStart = todayLessons.map { toMinutes(it.time) }
+            .firstOrNull { it > nowMinutes }
+        if (nextStart != null) {
+            val delay = millisUntilMinute(now, nextStart)
+            return delay.coerceAtLeast(15_000L)
+        }
+
+        return 30L * 60L * 1000L
+    }
+
+    private fun parseLessons(json: String): List<WidgetLesson> = try {
+        val array = org.json.JSONArray(json)
+        buildList {
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val lesson = item.optString("lesson")
+                val time = item.optString("time")
+                val date = item.optString("date")
+                if (lesson.isBlank() || time.isBlank() || date.isBlank()) continue
+                add(
+                    WidgetLesson(
+                        date,
+                        time,
+                        lesson,
+                        item.optString("room"),
+                        item.optString("group")
+                    )
+                )
+            }
+        }
+    } catch (_: Exception) {
+        emptyList()
+    }
+
+    private fun buildMeta(lesson: WidgetLesson, slot: BellSlot?): String =
+        buildString {
+            append(slot?.rangeText() ?: lesson.time)
+            if (lesson.room.isNotBlank()) append(" • каб. ").append(lesson.room)
+        }
+
+    private fun toMinutes(value: String): Int {
+        val match = Regex("^(\\d{1,2})[:.](\\d{2})").find(value.trim()) ?: return 9999
+        return match.groupValues[1].toInt() * 60 + match.groupValues[2].toInt()
+    }
+
+    private fun formatCountdown(now: Int, target: Int): String {
+        val delta = (target - now).coerceAtLeast(0)
+        return if (delta >= 60) {
+            delta / 60 + " ч " + delta % 60 + " мин"
+        } else {
+            delta.toString() + " мин"
+        }
+    }
+
+    private fun millisUntilMinute(now: Calendar, targetMinute: Int): Long {
+        val target = (now.clone() as Calendar).apply {
+            set(Calendar.HOUR_OF_DAY, targetMinute / 60)
+            set(Calendar.MINUTE, targetMinute % 60)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        return target.timeInMillis - now.timeInMillis
+    }
+
+    private fun alignedMinuteDelayMillis(): Long {
+        val now = System.currentTimeMillis()
+        val next = ((now / 60_000L) + 1L) * 60_000L
+        return (next - now).coerceAtLeast(15_000L)
+    }
 
     private fun toMinutes(value: String): Int {
         val match = Regex("^(\\d{1,2})[:.](\\d{2})").find(value.trim()) ?: return 9999
