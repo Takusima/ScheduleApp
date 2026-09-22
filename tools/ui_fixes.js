@@ -12,9 +12,9 @@ const run=()=>{
       const st=document.createElement('style');
       st.textContent=`
       .bottom-nav{position:fixed!important;overflow:hidden!important}
-      .bottom-nav::before{content:'';position:absolute;z-index:0;top:5px;bottom:5px;left:5px;width:calc((100% - 10px)/3);border-radius:16px;background:var(--accentSoft);box-shadow:0 5px 20px var(--accentSoft);transform:translateX(calc(var(--nav-index,0)*100%));transition:transform .34s cubic-bezier(.22,.75,.2,1),background .24s ease,box-shadow .24s ease;pointer-events:none}
-      .nav-btn{position:relative!important;z-index:1!important;background:transparent!important;transition:color .28s ease,transform .28s cubic-bezier(.22,.75,.2,1)!important}
-      .nav-btn.active{background:transparent!important;color:var(--accent)!important}
+      .bottom-nav::before{content:none!important;display:none!important}
+      .nav-btn{position:relative!important;z-index:1!important;background:transparent!important;transition:color .28s ease,background .28s ease,transform .28s cubic-bezier(.22,.75,.2,1)!important}
+      .nav-btn.active{background:var(--accentSoft)!important;color:var(--accent)!important;box-shadow:none!important}
       .nav-btn .icon{transition:transform .28s cubic-bezier(.22,.75,.2,1),color .28s ease}.nav-btn.active .icon{transform:translateY(-1px) scale(1.04)}
       .screen-page.active{animation:schedulePageIn .24s ease-out}@keyframes schedulePageIn{from{opacity:.45;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
       .lesson{padding-right:58px!important}.lesson-name{min-width:0;padding-right:4px!important;overflow-wrap:anywhere;word-break:break-word}
