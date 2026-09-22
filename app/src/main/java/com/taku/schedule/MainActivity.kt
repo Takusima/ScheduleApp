@@ -33,6 +33,8 @@ class MainActivity : AppCompatActivity() {
     private val openPersonalData = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) importPersonalData(uri) }
     private val createPersonalData = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri -> if (uri != null) writePersonalData(uri) }
     @Volatile private var pendingPersonalDataExport: String? = null
+    @Volatile private var pendingPersonalDataFileName: String = "scheduleapp-backup.json"
+    @Volatile private var pendingPersonalDataImportType: String = "all"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -134,14 +136,16 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun loadCached() { thread { try { val f = ScheduleFileSelector.select(ScheduleRepository.readCachedFiles(this@MainActivity)); if (f.isEmpty()) sendError("Сохранённого расписания пока нет") else sendFiles(f, "Сохранённое расписание • выбрана неделя по дате") } catch (e: Exception) { sendError(e.message ?: "Не удалось открыть сохранённое расписание") } } }
         @JavascriptInterface fun pickExcel() { runOnUiThread { openExcel.launch(arrayOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel")) } }
         @JavascriptInterface fun pickBackground() { runOnUiThread { openBackground.launch(arrayOf("image/*")) } }
-        @JavascriptInterface fun pickPersonalData() {
+        @JavascriptInterface fun pickPersonalData(type: String) {
+            pendingPersonalDataImportType = type.ifBlank { "all" }
             runOnUiThread {
                 openPersonalData.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
             }
         }
-        @JavascriptInterface fun savePersonalData(json: String) {
+        @JavascriptInterface fun savePersonalData(json: String, fileName: String) {
             pendingPersonalDataExport = json
-            runOnUiThread { createPersonalData.launch("scheduleapp-backup.json") }
+            pendingPersonalDataFileName = fileName.ifBlank { "scheduleapp-backup.json" }
+            runOnUiThread { createPersonalData.launch("application/json") }
         }
         @JavascriptInterface fun hasSeenWelcome(): Boolean =
             getSharedPreferences("app_install_state", MODE_PRIVATE).getBoolean("welcome_seen_v1", false)
@@ -191,12 +195,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun importPersonalData(uri: Uri) {
+        val importType = pendingPersonalDataImportType
         thread {
             try {
                 val content = contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
                     ?: throw IllegalStateException("Не удалось прочитать файл данных")
                 if (content.length > 2_000_000) throw IllegalArgumentException("Файл данных слишком большой")
-                val js = "window.onPersonalDataImported&&window.onPersonalDataImported(" + JSONObject.quote(content) + ")"
+                val js = "window.onPersonalDataImported&&window.onPersonalDataImported(" + JSONObject.quote(content) + "," + JSONObject.quote(importType) + ")"
                 runOnUiThread { if (::web.isInitialized) web.evaluateJavascript(js, null) }
             } catch (e: Exception) {
                 sendError(e.message ?: "Не удалось импортировать личные данные")
