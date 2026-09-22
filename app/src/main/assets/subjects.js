@@ -358,8 +358,11 @@
             modal.innerHTML = `
                 <div class="modal-box" onclick="event.stopPropagation()">
                     <div class="modal-title">
-                        <strong id="teacherTitle"></strong>
-                        <button class="close-btn" id="teacherClose">×</button>
+                        <div>
+                            <strong id="teacherTitle"></strong>
+                            <div class="person-editor-subtitle">Введите ФИО преподавателя</div>
+                        </div>
+                        <button class="close-btn" id="teacherClose" type="button" aria-label="Закрыть">×</button>
                     </div>
                     <div class="teacher-label">ФИО преподавателя</div>
                     <input id="teacherInput" class="teacher-input" type="text" autocomplete="name" placeholder="Например, Иванов Иван Иванович">
