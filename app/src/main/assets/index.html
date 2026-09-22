@@ -1835,6 +1835,7 @@ function buildData() {
     updateDays();
     updateSchedule();
     updateCalendar();
+        updateBellSchedule();
     updateSettingsInfo();\n    updateBellSchedule();
 
     /*
@@ -1890,6 +1891,7 @@ function buildData() {
     updateDays();
     updateSchedule();
     updateCalendar();
+        updateBellSchedule();
     updateOnboarding();
 }
 
@@ -2008,6 +2010,7 @@ document.getElementById(
         updateDays();
         updateSchedule();
         updateCalendar();
+        updateBellSchedule();
         updateSettingsInfo();
     }
 );
@@ -2089,6 +2092,7 @@ document.getElementById(
         updateDays();
         updateSchedule();
         updateCalendar();
+        updateBellSchedule();
     }
 );
 
@@ -2192,6 +2196,7 @@ function updateDays() {
                     updateDays();
                     updateSchedule();
                     updateCalendar();
+        updateBellSchedule();
                 };
 
             container.appendChild(
@@ -2503,6 +2508,7 @@ function updateCalendar() {
                 updateDays();
                 updateSchedule();
                 updateCalendar();
+        updateBellSchedule();
 
                 document.getElementById(
                     "calendarSelectedText"
@@ -2544,6 +2550,7 @@ function changeMonth(offset) {
         );
 
     updateCalendar();
+        updateBellSchedule();
 }
 
 
@@ -2590,6 +2597,7 @@ function selectToday() {
     updateDays();
     updateSchedule();
     updateCalendar();
+        updateBellSchedule();
 
     showPage("schedule");
 }
@@ -2680,6 +2688,7 @@ function showPage(page) {
         );
 
         updateCalendar();
+        updateBellSchedule();
 
     } else {
 
@@ -3094,6 +3103,7 @@ document.addEventListener(
     function() {
 
         updateCalendar();
+        updateBellSchedule();
         updateSettingsInfo();
 
         setTimeout(
@@ -3102,6 +3112,8 @@ document.addEventListener(
         );
     }
 );
+
+startBellSchedule();
 
 </script>
 
