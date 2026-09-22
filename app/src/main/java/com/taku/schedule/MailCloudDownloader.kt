@@ -18,6 +18,7 @@ object MailCloudDownloader {
     private const val OLD_CACHE_DIR = "schedule_cloud_old"
     private const val USER_AGENT = "ScheduleApp/1.0"
     private const val MAX_REDIRECTS = 8
+    private const val DOWNLOAD_ATTEMPTS = 3
 
     fun download(context: Context): List<File> {
         val temp = File(context.filesDir, TEMP_DIR)
@@ -30,10 +31,11 @@ object MailCloudDownloader {
 
         return try {
             val zipUrl = createZipLink()
-            val zipBytes = httpGetBytes(zipUrl)
+            val zipBytes = downloadZipWithRetry(zipUrl)
 
             val zipFile = File(temp, "mail_schedule.zip")
             FileOutputStream(zipFile).use { it.write(zipBytes) }
+            validateZipArchive(zipFile)
 
             val extractedDir = File(temp, "excel")
             extractedDir.mkdirs()
@@ -52,9 +54,12 @@ object MailCloudDownloader {
                 if (!file.exists() || !file.isFile || file.length() <= 0) {
                     throw IllegalStateException("Повреждённый Excel-файл: ${file.name}")
                 }
+                validateExcelArchive(file);
+                /*
+                }
             }
 
-            replaceCache(context, selected, cache, old)
+            replaceCache(context, selected, cache, old)*/
         } catch (e: Exception) {
             temp.deleteRecursively()
             old.deleteRecursively()
@@ -96,6 +101,52 @@ object MailCloudDownloader {
         }
     }
 
+    private fun downloadZipWithRetry(urlText: String): ByteArray {
+        var lastError: Exception? = null
+        repeat(DOWNLOAD_ATTEMPTS) { attempt ->
+            try {
+                val bytes = httpGetBytes(urlText)
+                if (bytes.isEmpty()) throw IllegalStateException("Mail ZIP: получен пустой ответ")
+                val check = File.createTempFile("schedule_zip_check_", ".zip")
+                try {
+                    FileOutputStream(check).use { it.write(bytes) }
+                    validateZipArchive(check)
+                } finally {
+                    check.delete()
+                }
+                return bytes
+            } catch (e: Exception) {
+                lastError = e
+                if (attempt + 1 < DOWNLOAD_ATTEMPTS) Thread.sleep(500L * (attempt + 1))
+            }
+        }
+        throw IllegalStateException("Не удалось скачать целый ZIP-архив Mail.ru после $DOWNLOAD_ATTEMPTS попыток: " + (lastError?.message ?: "архив повреждён"))
+    }
+
+    private fun validateZipArchive(file: File) {
+        try {
+            ZipFile(file).use { zip ->
+                val entries = zip.entries()
+                if (!entries.hasMoreElements()) throw IllegalStateException("Mail ZIP пустой")
+                while (entries.hasMoreElements()) entries.nextElement()
+            }
+        } catch (e: Exception) {
+            throw IllegalStateException("Неожиданный конец архива Mail.ru: " + (e.message ?: "архив повреждён"), e)
+        }
+    }
+
+    private fun validateExcelArchive(file: File) {
+        try {
+            ZipFile(file).use { zip ->
+                val contentTypes = zip.getEntry("[Content_Types].xml") ?: throw IllegalStateException("нет [Content_Types].xml")
+                val text = zip.getInputStream(contentTypes).use { it.readBytes().toString(Charsets.UTF_8).lowercase() }
+                if (!text.contains("spreadsheetml.sheet") && !text.contains("application/vnd.ms-excel")) throw IllegalStateException("это не XLSX")
+            }
+        } catch (e: Exception) {
+            throw IllegalStateException("Excel-файл повреждён или оборван: " + file.name + ": " + (e.message ?: "архив повреждён"), e)
+        }
+    }
+
     private fun httpGetBytes(urlText: String): ByteArray {
         var currentUrl = urlText
         var redirects = 0
@@ -119,7 +170,9 @@ object MailCloudDownloader {
                 if (code !in 200..299) {
                     throw IllegalStateException("Загрузка Mail ZIP: HTTP $code")
                 }
-
+                if (code == HttpURLConnection.HTTP_PARTIAL) {
+                    throw IllegalStateException("Mail ZIP: сервер вернул неполный ответ HTTP 206")
+                }
                 val raw = connection.inputStream.use { it.readBytes() }
                 if (raw.isEmpty()) {
                     throw IllegalStateException("Mail ZIP: пустой ответ")
