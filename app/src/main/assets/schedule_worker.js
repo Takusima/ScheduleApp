@@ -109,18 +109,114 @@ async function loadWorkbook(file) {
   throw new Error('Excel-файл не содержит данных');
 }
 
+function parseFlexibleScheduleSheet(sheet, fileName) {
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+  if (!rows || !rows.length) return [];
+
+  const groups = findGroupsInSheet(rows);
+  if (!groups.length) return [];
+
+  const fallbackYear = inferYearFromFileName(fileName);
+  const lessons = [];
+  let currentDate = null;
+
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r] || [];
+
+    // Реальные файлы КМК встречаются в нескольких вариантах:
+    // дата может быть в A/B/C, время — в A/B/C/D/E.
+    // Сначала ищем дату только в первых 3 колонках, чтобы не принять
+    // номер группы или кабинет за дату.
+    let rowDate = null;
+    for (let c = 0; c < Math.min(3, row.length); c++) {
+      const candidate = parseDateValue(row[c], fallbackYear);
+      if (candidate) {
+        rowDate = candidate;
+        break;
+      }
+    }
+    if (rowDate) {
+      currentDate = dateKey(
+        rowDate.getFullYear(),
+        rowDate.getMonth() + 1,
+        rowDate.getDate()
+      );
+    }
+
+    let time = '';
+    for (let c = 0; c < Math.min(5, row.length); c++) {
+      const candidate = formatTime(row[c]);
+      if (/^\d{2}:\d{2}$/.test(candidate)) {
+        time = candidate;
+        break;
+      }
+    }
+
+    if (!currentDate || !time) continue;
+
+    groups.forEach(group => {
+      const lesson = clean(row[group.column]);
+      if (!lesson) return;
+      const normalizedLesson = normalize(lesson);
+      if (
+        normalizedLesson === 'каб' ||
+        normalizedLesson === normalize(group.name) ||
+        normalizedLesson === '10 м/с'
+      ) return;
+
+      let room = group.column > 0 ? clean(row[group.column - 1]) : '';
+      if (normalize(room) === 'каб') room = '';
+
+      lessons.push({
+        date: currentDate,
+        group: group.name,
+        time,
+        lesson,
+        room,
+        file: fileName
+      });
+    });
+  }
+
+  return lessons;
+}
+
 self.onmessage = async function(event) {
   const file = event.data || {};
   try {
     const workbook = await loadWorkbook(file);
     const lessons = [];
+    let lectureSheetsFound = false;
+
     workbook.SheetNames.forEach(sheetName => {
       const name = normalize(sheetName);
-      if (name !== 'лекции' && !name.includes('лекци')) return;
-      lessons.push(...parseLectureSheet(workbook.Sheets[sheetName], file.name));
+      if (name === 'лекции' || name.includes('лекци')) {
+        lectureSheetsFound = true;
+        lessons.push(...parseLectureSheet(workbook.Sheets[sheetName], file.name));
+      }
     });
-    self.postMessage({ ok: true, name: file.name, lessons });
+
+    // Если лист "Лекции" отсутствует или пустой, не ломаем расписание:
+    // разбираем листы по фактической структуре "каб + группа + дата + время".
+    if (!lessons.length) {
+      workbook.SheetNames.forEach(sheetName => {
+        const name = normalize(sheetName);
+        if (name === 'лекции' || name.includes('лекци')) return;
+        lessons.push(...parseFlexibleScheduleSheet(workbook.Sheets[sheetName], file.name));
+      });
+    }
+
+    self.postMessage({
+      ok: true,
+      name: file.name,
+      lessons,
+      fallback: !lectureSheetsFound || lessons.length === 0
+    });
   } catch (error) {
-    self.postMessage({ ok: false, name: file.name, error: String(error && (error.message || error)) });
+    self.postMessage({
+      ok: false,
+      name: file.name,
+      error: String(error && (error.message || error))
+    });
   }
 };
