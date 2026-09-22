@@ -945,6 +945,35 @@
 
             </div>
 
+
+            <div class="settings-card personal-data-card">
+                <h3>📦 Мои данные</h3>
+                <p>Сохраняйте преподавателей, куратора и любимые предметы отдельными файлами на телефоне. Их можно перенести на другой телефон или восстановить после переустановки.</p>
+
+                <div class="info-line"><span>Преподаватели</span><span>JSON</span></div>
+                <div class="data-action-row">
+                    <button type="button" class="outline-btn" onclick="importPersonalData('teachers')">Импорт</button>
+                    <button type="button" class="wide-btn" onclick="exportPersonalData('teachers')">Сохранить</button>
+                </div>
+
+                <div class="info-line"><span>Куратор</span><span>JSON</span></div>
+                <div class="data-action-row">
+                    <button type="button" class="outline-btn" onclick="importPersonalData('curator')">Импорт</button>
+                    <button type="button" class="wide-btn" onclick="exportPersonalData('curator')">Сохранить</button>
+                </div>
+
+                <div class="info-line"><span>Любимые предметы</span><span>JSON</span></div>
+                <div class="data-action-row">
+                    <button type="button" class="outline-btn" onclick="importPersonalData('favorites')">Импорт</button>
+                    <button type="button" class="wide-btn" onclick="exportPersonalData('favorites')">Сохранить</button>
+                </div>
+
+                <div class="data-action-row" style="margin-top:10px">
+                    <button type="button" class="outline-btn" style="width:100%" onclick="importPersonalData('all')">Импортировать всё</button>
+                    <button type="button" class="wide-btn" style="width:100%" onclick="exportPersonalData('all')">Сохранить всё</button>
+                </div>
+            </div>
+
             <div class="settings-card">
 
                 <h3>Локальные данные</h3>
@@ -3316,70 +3345,95 @@ function personalGroupKey(group) {
     return s ? s.toLowerCase().replace(/[^a-zа-я0-9]+/gi, "_") : "none";
 }
 
-function readPersonalData() {
+function readPersonalData(kind) {
     const group = state.selectedGroup || localStorage.getItem("scheduleapp.selectedGroup.v1") || "";
+    const gk = personalGroupKey(group);
     let teachers = {};
     let curator = "";
-    try { teachers = JSON.parse(localStorage.getItem("scheduleapp_subjects_v2_" + personalGroupKey(group)) || "{}"); } catch (_) {}
-    curator = localStorage.getItem("scheduleapp_curator_v1_" + personalGroupKey(group)) || "";
     let favorites = [];
+    try { teachers = JSON.parse(localStorage.getItem("scheduleapp_subjects_v2_" + gk) || "{}"); } catch (_) {}
+    curator = localStorage.getItem("scheduleapp_curator_v1_" + gk) || "";
     try { favorites = JSON.parse(localStorage.getItem("scheduleapp.favorites.v1") || "[]"); } catch (_) {}
-    return { version:1, app:"scheduleapp", group, teachers, curator, favorites };
+    if (kind === "teachers") return { version:1, app:"scheduleapp", type:"teachers", group, teachers };
+    if (kind === "curator") return { version:1, app:"scheduleapp", type:"curator", group, curator };
+    if (kind === "favorites") return { version:1, app:"scheduleapp", type:"favorites", group, favorites };
+    return { version:1, app:"scheduleapp", type:"all", group, teachers, curator, favorites };
 }
 
-function exportPersonalData() {
-    const payload = JSON.stringify(readPersonalData(), null, 2);
+function personalFileName(kind) {
+    const group = personalGroupKey(state.selectedGroup || localStorage.getItem("scheduleapp.selectedGroup.v1") || "group");
+    if (kind === "teachers") return "scheduleapp-prepodavateli-" + group + ".json";
+    if (kind === "curator") return "scheduleapp-kurator-" + group + ".json";
+    if (kind === "favorites") return "scheduleapp-lyubimye-predmety-" + group + ".json";
+    return "scheduleapp-backup-" + group + ".json";
+}
+
+function exportPersonalData(kind) {
+    kind = kind || "all";
+    const payload = JSON.stringify(readPersonalData(kind), null, 2);
     if (window.Android && typeof Android.savePersonalData === "function") {
-        Android.savePersonalData(payload);
+        Android.savePersonalData(payload, personalFileName(kind));
     } else {
         showMessage("Перенос данных","Сохранение файла доступно в Android-приложении.");
     }
 }
 
-function importPersonalData() {
+function importPersonalData(kind) {
+    kind = kind || "all";
     if (window.Android && typeof Android.pickPersonalData === "function") {
-        Android.pickPersonalData();
+        Android.pickPersonalData(kind);
     } else {
         showMessage("Перенос данных","Импорт файла доступен в Android-приложении.");
     }
 }
 
-window.onPersonalDataImported = function(json) {
+window.onPersonalDataImported = function(json, requestedType) {
     try {
         const data = typeof json === "string" ? JSON.parse(json) : json;
         if (!data || data.app !== "scheduleapp") throw new Error("Это не файл данных «Расписание».");
+        const type = requestedType || data.type || "all";
+        if (!["all","teachers","curator","favorites"].includes(type)) throw new Error("Неизвестный тип данных.");
+
         const group = clean(data.group || state.selectedGroup || "");
         if (!group) throw new Error("В файле не указана учебная группа.");
-
         const gk = personalGroupKey(group);
-        const teachers = data.teachers && typeof data.teachers === "object" && !Array.isArray(data.teachers) ? data.teachers : {};
-        const curator = clean(data.curator || "");
-        const favorites = Array.isArray(data.favorites) ? data.favorites.map(clean).filter(Boolean) : [];
+
+        if (type === "teachers" || type === "all") {
+            const teachers = data.teachers && typeof data.teachers === "object" && !Array.isArray(data.teachers) ? data.teachers : null;
+            if (teachers === null) throw new Error("В файле не найден список преподавателей.");
+            localStorage.setItem("scheduleapp_subjects_v2_" + gk, JSON.stringify(teachers));
+        }
+
+        if (type === "curator" || type === "all") {
+            const curator = clean(data.curator || "");
+            localStorage.setItem("scheduleapp_curator_v1_" + gk, curator);
+        }
+
+        if (type === "favorites" || type === "all") {
+            const favorites = Array.isArray(data.favorites) ? data.favorites.map(clean).filter(Boolean) : null;
+            if (favorites === null) throw new Error("В файле не найден список любимых предметов.");
+            localStorage.setItem("scheduleapp.favorites.v1", JSON.stringify(Array.from(new Set(favorites))));
+        }
 
         localStorage.setItem("scheduleapp.selectedGroup.v1", group);
-        localStorage.setItem("scheduleapp_subjects_v2_" + gk, JSON.stringify(teachers));
-        localStorage.setItem("scheduleapp_curator_v1_" + gk, curator);
-
-        let currentFavorites = [];
-        try { currentFavorites = JSON.parse(localStorage.getItem("scheduleapp.favorites.v1") || "[]"); } catch (_) {}
-        const mergedFavorites = Array.from(new Set(currentFavorites.concat(favorites)));
-        localStorage.setItem("scheduleapp.favorites.v1", JSON.stringify(mergedFavorites));
-
         state.selectedGroup = group;
         updateGroupSelectValue();
         updateSettingsInfo();
         window.dispatchEvent(new Event("scheduleapp:personal-data-imported"));
         if (typeof window.renderSubjectsScreen === "function") window.renderSubjectsScreen();
-        showMessage("Данные восстановлены", "Преподаватели, куратор и избранные предметы сохранены для группы «" + group + "».");
+
+        const titles = {teachers:"Преподаватели восстановлены", curator:"Куратор восстановлен", favorites:"Любимые предметы восстановлены", all:"Данные восстановлены"};
+        const names = {teachers:"список преподавателей", curator:"куратор", favorites:"любимые предметы", all:"преподаватели, куратор и любимые предметы"};
+        showMessage(titles[type], names[type] + " сохранены на телефоне для группы «" + group + "».");
     } catch (e) {
         showMessage("Ошибка импорта", e.message || "Не удалось импортировать данные.");
     }
 };
 
 window.onPersonalDataExported = function(ok, message) {
-    if (ok) showMessage("Файл сохранён", message || "Личные данные сохранены.");
+    if (ok) showMessage("Файл сохранён", message || "Данные сохранены в выбранное место на телефоне.");
     else showMessage("Ошибка", message || "Не удалось сохранить файл.");
-}
+};
 
 function updateOnboarding() {
     let seen = false;
