@@ -54,12 +54,10 @@ object MailCloudDownloader {
                 if (!file.exists() || !file.isFile || file.length() <= 0) {
                     throw IllegalStateException("Повреждённый Excel-файл: ${file.name}")
                 }
-                validateExcelArchive(file);
-                /*
-                }
+                validateExcelArchive(file)
             }
 
-            replaceCache(context, selected, cache, old)*/
+            replaceCache(context, selected, cache, old)
         } catch (e: Exception) {
             temp.deleteRecursively()
             old.deleteRecursively()
