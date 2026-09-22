@@ -2059,11 +2059,14 @@ document.getElementById(
             this.value;
 
         if (state.selectedGroup) {
-            localStorage.setItem("scheduleapp.selectedGroup.v1", state.selectedGroup);
-            localStorage.setItem("scheduleapp.onboarding.v1", "1");
-        } else {
-            localStorage.removeItem("scheduleapp.selectedGroup.v1");
-            localStorage.removeItem("scheduleapp.onboarding.v1");
+            localStorage.setItem(
+                "scheduleapp.selectedGroup.v1",
+                state.selectedGroup
+            );
+            localStorage.setItem(
+                "scheduleapp.onboarding.v1",
+                "1"
+            );
         }
 
         document.getElementById(
@@ -2074,6 +2077,7 @@ document.getElementById(
         updateDays();
         updateSchedule();
         updateCalendar();
+        updateBellSchedule();
         updateSettingsInfo();
     }
 );
@@ -2202,6 +2206,16 @@ function updateDays() {
             '<div class="empty" style="width:100%">Для этой группы даты не найдены</div>';
 
         return;
+    }
+
+    const today = todayKey();
+    if (!groupDates.includes(state.selectedDate)) {
+        state.selectedDate =
+            groupDates.includes(today)
+                ? today
+                : groupDates[0];
+
+        updateDateSelectValue();
     }
 
     groupDates.forEach(
