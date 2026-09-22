@@ -214,6 +214,7 @@ function requestGroup(requested) {
 
 function isGroupSelect(target) {
   if (!target) return false;
+  if (target.id === 'groupSelect') return true;
   if (control && target === control) return true;
   if (target.tagName !== 'SELECT') return false;
   const texts = Array.from(target.options || []).map(o => o.textContent.trim());
