@@ -1,12 +1,12 @@
 (function () {
     "use strict";
 
-    const STORAGE_KEY = "scheduleapp_subjects_v1";
-    const subjects = load();
+    const STORAGE_PREFIX = "scheduleapp_subjects_v2_";
+    let subjects = load();
 
-    function load() {
+    function groupKey() { const s=document.getElementById("groupSelect"); const g=clean(s?s.value:""); return g ? g.toLowerCase().replace(/[^a-zа-я0-9]+/gi,"_") : "none"; }\n\n    function load() {
         try {
-            const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+            const value = JSON.parse(localStorage.getItem(STORAGE_PREFIX + groupKey()) || "{}");
             return value && typeof value === "object" ? value : {};
         } catch (_) {
             return {};
@@ -14,7 +14,7 @@
     }
 
     function save() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(subjects));
+        localStorage.setItem(STORAGE_PREFIX + groupKey(), JSON.stringify(subjects));
     }
 
     function clean(value) {
@@ -41,7 +41,7 @@
         const s = clean(value);
         if (!s || s.length < 2 || s.length > 120) return false;
         const n = key(s);
-        if (/^(каб|ауд|аудитория|кабинет)$/i.test(n)) return false;
+        if (/^(каб|ауд|аудитория|кабинет)$/i.test(n)) return false; if (/^10\s*м\/с$/i.test(s)) return false; if (/классн(?:ый|ые)?\s*час/i.test(s)) return false;
         if (/^\d+(?:[.,]\d+)?$/.test(s)) return false;
         if (/^(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)$/i.test(n)) return false;
         return true;
@@ -192,7 +192,7 @@
                 75%,100% { transform:translateX(120%); }
             }
             #subjectsPage .subject-search::placeholder { color:#746c79; }
-            .subjects-count { color:#817987; font-size:11px; margin:0 4px 10px; }
+            .subjects-count { color:#817987; font-size:11px; margin:0 4px 10px; } .curator-card{position:relative;overflow:hidden;padding:16px;margin-bottom:14px;border-radius:21px;background:linear-gradient(145deg,#33204d,#17111f);border:1px solid rgba(182,130,255,.32);box-shadow:0 0 18px rgba(145,82,230,.16),inset 0 1px rgba(255,255,255,.1);animation:curatorGlow 3.5s ease-in-out infinite}.curator-card:after{content:"";position:absolute;inset:-40%;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.2) 49%,transparent 56%);animation:curatorSparkle 4.5s ease-in-out infinite;pointer-events:none}@keyframes curatorGlow{0%,100%{box-shadow:0 0 14px rgba(145,82,230,.14),inset 0 1px rgba(255,255,255,.08)}50%{box-shadow:0 0 28px rgba(166,108,255,.3),inset 0 1px rgba(255,255,255,.14)}}@keyframes curatorSparkle{0%,55%{transform:translateX(-65%)}78%,100%{transform:translateX(65%)}}
             .subject-list { display:flex; flex-direction:column; gap:8px; }
             .subject-row {
                 display:flex; align-items:center; gap:12px;
@@ -238,7 +238,7 @@
             </div>
             <button class="subjects-back" onclick="showPage('schedule')">‹&nbsp;&nbsp; Назад к расписанию</button>
             <input id="subjectSearch" class="subject-search" type="search" placeholder="🔎  Найти предмет">
-            <div id="subjectsCount" class="subjects-count"></div>
+            <div id="curatorCard" class="curator-card"></div><div id="subjectsCount" class="subjects-count"></div>
             <div id="subjectsList" class="subject-list"></div>
         `;
         settings.parentNode.insertBefore(page, settings);
@@ -268,7 +268,7 @@
         const count = document.getElementById("subjectsCount");
         if (!list || !count) return;
 
-        const query = key(document.getElementById("subjectSearch")?.value || "");
+        const card = document.getElementById("curatorCard"); if(card){card.innerHTML="<div style=\"font-size:16px;font-weight:800\">✨ Куратор</div><div style=\"margin-top:5px;color:#92889e;font-size:11px\">Классный час · 09:55</div><div style=\"margin-top:9px;font-size:14px;font-weight:700\">"+(curator||"Куратор не указан")+"</div>";}\n        const query = key(document.getElementById("subjectSearch")?.value || "");
         const names = Object.keys(subjects)
             .sort(function (a, b) { return a.localeCompare(b, "ru"); })
             .filter(function (name) { return !query || key(name).includes(query); });
@@ -298,7 +298,7 @@
         });
     }
 
-    function editTeacher(name) {
+    function editCurator() { const value=prompt("ФИО куратора",curator||""); if(value!==null){curator=clean(value); localStorage.setItem("scheduleapp_curator_v1_"+groupKey(),curator); render();} }\n\n    function editTeacher(name) {
         let modal = document.getElementById("teacherModal");
         if (!modal) {
             modal = document.createElement("div");
