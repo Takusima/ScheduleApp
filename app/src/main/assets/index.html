@@ -320,7 +320,6 @@
             z-index: 50;
             overflow: hidden;
             isolation: isolate;
-            position: fixed;
         }
 
         .bottom-nav .nav-indicator {
@@ -2644,6 +2643,9 @@ function updateNavBubble() {
 }
 
 window.addEventListener("resize", updateNavBubble);
+window.addEventListener("load", function () {
+    setTimeout(updateNavBubble, 0);
+});
 
 function showPage(page) {
 
