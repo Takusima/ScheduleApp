@@ -339,6 +339,36 @@
             font-size: 10px;
         }
 
+        .calendar-nav-icon {
+            position: relative;
+            width: 18px;
+            height: 17px;
+            margin: 1px auto 2px;
+            border: 1.6px solid currentColor;
+            border-radius: 4px;
+        }
+
+        .calendar-nav-icon::before {
+            content: "";
+            position: absolute;
+            left: -1.6px;
+            right: -1.6px;
+            top: 4px;
+            border-top: 1.6px solid currentColor;
+        }
+
+        .calendar-nav-icon::after {
+            content: "";
+            position: absolute;
+            left: 3px;
+            top: -4px;
+            width: 2px;
+            height: 5px;
+            border-radius: 2px;
+            background: currentColor;
+            box-shadow: 9px 0 0 currentColor;
+        }
+
         .nav-btn.active {
             color: #b77dff;
             background: rgba(136, 74, 211, 0.13);
@@ -919,7 +949,7 @@
             class="nav-btn"
             onclick="showPage('calendar')"
         >
-            <span class="icon">📅</span>
+            <span class="icon calendar-nav-icon" aria-hidden="true"></span>
             <span class="label">Календарь</span>
         </button>
 
@@ -1006,7 +1036,11 @@ const state = {
 
     calendarSelected: "",
 
-    loading: false
+    loading: false,
+
+    // Parsed Excel is kept in memory so repeated sync callbacks
+    // do not parse the same ~1 MB workbook again.
+    parseCache: new Map()
 };
 
 
@@ -1638,62 +1672,52 @@ function parseLectureSheet(
 function parseXlsxFile(
     file
 ) {
-
     try {
+        const data = String(file.data || "");
+        const cacheKey =
+            clean(file.name) + ":" +
+            data.length + ":" +
+            data.slice(0, 24) + ":" +
+            data.slice(-24);
 
-        const workbook =
-            XLSX.read(
-                file.data,
-                {
-                    type: "base64",
-                    cellDates: true
-                }
-            );
+        if (state.parseCache.has(cacheKey)) {
+            return state.parseCache.get(cacheKey);
+        }
+
+        const workbook = XLSX.read(
+            data,
+            {
+                type: "base64",
+                cellDates: true
+            }
+        );
 
         const result = [];
 
         workbook.SheetNames.forEach(
             sheetName => {
+                if (!isLectureSheet(sheetName)) return;
 
-                if (
-                    !isLectureSheet(
-                        sheetName
-                    )
-                ) {
-                    return;
-                }
-
-                const sheet =
-                    workbook.Sheets[
-                        sheetName
-                    ];
-
-                const lessons =
-                    parseLectureSheet(
-                        sheet,
-                        file.name
-                    );
-
-                result.push(
-                    ...lessons
-                );
+                const sheet = workbook.Sheets[sheetName];
+                const lessons = parseLectureSheet(sheet, file.name);
+                result.push(...lessons);
             }
         );
 
+        // Keep the cache bounded so repeated imports cannot grow memory forever.
+        if (state.parseCache.size >= 8) {
+            const oldest = state.parseCache.keys().next().value;
+            state.parseCache.delete(oldest);
+        }
+
+        state.parseCache.set(cacheKey, result);
         return result;
 
     } catch (error) {
-
-        console.error(
-            "Ошибка чтения Excel:",
-            file.name,
-            error
-        );
-
+        console.error("Ошибка чтения Excel:", file.name, error);
         return [];
     }
 }
-
 
 /* =========================================================
    ПОСТРОЕНИЕ БАЗЫ РАСПИСАНИЯ
@@ -1751,15 +1775,20 @@ function buildData() {
                             lesson.group
                         ];
 
-                    const duplicate =
-                        list.some(
-                            item =>
-                                item.time === lesson.time &&
-                                item.lesson === lesson.lesson &&
-                                item.room === lesson.room
-                        );
+                    const duplicateKey =
+                        lesson.time + "\u001f" +
+                        lesson.lesson + "\u001f" +
+                        lesson.room;
 
-                    if (!duplicate) {
+                    if (!list._keys) {
+                        Object.defineProperty(list, "_keys", {
+                            value: new Set(),
+                            enumerable: false
+                        });
+                    }
+
+                    if (!list._keys.has(duplicateKey)) {
+                        list._keys.add(duplicateKey);
                         list.push(lesson);
                     }
                 }
@@ -1835,7 +1864,7 @@ function buildData() {
     updateDays();
     updateSchedule();
     updateCalendar();
-        updateBellSchedule();
+    updateBellSchedule();
     updateSettingsInfo();\n    updateBellSchedule();
 
     /*
@@ -2010,7 +2039,6 @@ document.getElementById(
         updateDays();
         updateSchedule();
         updateCalendar();
-        updateBellSchedule();
         updateSettingsInfo();
     }
 );
@@ -2212,114 +2240,49 @@ function updateDays() {
    ========================================================= */
 
 function updateSchedule() {
+    const container = document.getElementById("schedule");
 
-    const container =
-        document.getElementById(
-            "schedule"
-        );
-
-    if (
-        !state.files.length
-    ) {
-
+    if (!state.files.length) {
         container.innerHTML =
-            '<div class="empty">' +
-            "Нет загруженных Excel-файлов.<br><br>" +
-            "Нажмите «Обновить» или загрузите Excel в Настройках." +
-            "</div>";
-
+            '<div class="empty">Нет загруженных Excel-файлов.<br><br>' +
+            'Нажмите «Обновить» или загрузите Excel в Настройках.</div>';
         return;
     }
 
-    if (
-        !state.selectedGroup ||
-        !state.selectedDate
-    ) {
-
+    if (!state.selectedGroup || !state.selectedDate) {
         container.innerHTML =
             '<div class="empty">Выберите группу и дату.</div>';
-
         return;
     }
 
     const lessons =
-        state.data[
-            state.selectedDate
-        ] &&
-        state.data[
-            state.selectedDate
-        ][
-            state.selectedGroup
-        ];
+        state.data[state.selectedDate] &&
+        state.data[state.selectedDate][state.selectedGroup];
 
-    if (
-        !lessons ||
-        !lessons.length
-    ) {
-
+    if (!lessons || !lessons.length) {
         container.innerHTML =
-            '<div class="empty">' +
-            "На " +
-            escapeHtml(
-                formatDateRu(
-                    state.selectedDate
-                )
-            ) +
-            " занятий нет." +
-            "</div>";
-
+            '<div class="empty">На ' +
+            escapeHtml(formatDateRu(state.selectedDate)) +
+            ' занятий нет.</div>';
         return;
     }
 
-    container.innerHTML = "";
+    const html = lessons.map(lesson => {
+        const room = lesson.room
+            ? "Кабинет: " + escapeHtml(lesson.room)
+            : "Кабинет не указан";
 
-    lessons.forEach(
-        lesson => {
+        return '<div class="lesson">' +
+            '<div class="lesson-time">' + escapeHtml(lesson.time) + '</div>' +
+            '<div>' +
+            '<div class="lesson-name">' + escapeHtml(lesson.lesson) + '</div>' +
+            '<div class="lesson-room">' + room + '</div>' +
+            '</div>' +
+            '</div>';
+    }).join("");
 
-            const element =
-                document.createElement(
-                    "div"
-                );
-
-            element.className =
-                "lesson";
-
-            let room =
-                lesson.room
-                    ? "Кабинет: " +
-                        escapeHtml(
-                            lesson.room
-                        )
-                    : "Кабинет не указан";
-
-            element.innerHTML =
-                '<div class="lesson-time">' +
-                escapeHtml(
-                    lesson.time
-                ) +
-                "</div>" +
-
-                '<div>' +
-
-                '<div class="lesson-name">' +
-                escapeHtml(
-                    lesson.lesson
-                ) +
-                "</div>" +
-
-                '<div class="lesson-room">' +
-                room +
-                "</div>" +
-
-                "</div>";
-
-            container.appendChild(
-                element
-            );
-        }
-    );
+    container.innerHTML = html;
 }
-
 
 /* =========================================================
    КАЛЕНДАРЬ
