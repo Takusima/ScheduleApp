@@ -353,9 +353,9 @@ private object WidgetDataParser {
     private fun formatCountdown(now: Int, target: Int): String {
         val delta = (target - now).coerceAtLeast(0)
         return if (delta >= 60) {
-            delta / 60 + " ч " + delta % 60 + " мин"
+            String.format(Locale.US, "%d ч %d мин", delta / 60, delta % 60)
         } else {
-            delta.toString() + " мин"
+            String.format(Locale.US, "%d мин", delta)
         }
     }
 
