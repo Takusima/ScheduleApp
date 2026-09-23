@@ -96,28 +96,25 @@ jobs:
       - name: Publish versioned GitHub Releases
         env:
           GH_TOKEN: ${{ github.token }}
-          V01_COMMIT: b3c3d7687cac80e7081b78667a6a80d83fdee605
         run: |
           set -e
 
-          # Do not call `gh release list` here: the Actions integration can
-          # build/push repository content but may reject the releases GET API.
-          # Instead, use git tags as the idempotency check.
+          # The 0.1 APK is built from the exact legacy commit (#171).
+          # The Release tag itself is created on the current main commit so
+          # the GitHub Actions token never attempts to push a ref containing
+          # a workflow file without the separate `workflows` permission.
 
-          # 0.1 must point exactly to the original stable commit (#171).
-          if ! git ls-remote --exit-code --refs origin "refs/tags/release-0.1" >/dev/null 2>&1; then
-            git push origin "$V01_COMMIT:refs/tags/release-0.1"
-          fi
-
-          # Create the 0.1 Release. If it already exists, keep it unchanged.
+          # Create 0.1 on first publication. If it already exists, keep it.
           set +e
           gh release create release-0.1 "$RUNNER_TEMP/ScheduleApp-0.1.apk" \
+            --target "$GITHUB_SHA" \
             --title "ScheduleApp 0.1" \
-            --notes-file CHANGELOG.md 2>"$RUNNER_TEMP/release-0.1.err"
+            --notes "Legacy stable APK. Built from commit b3c3d7687cac80e7081b78667a6a80d83fdee605 (release #171)." \
+            2>"$RUNNER_TEMP/release-0.1.err"
           STATUS=$?
           set -e
           if [ "$STATUS" -ne 0 ]; then
-            if grep -Eqi "already exists|already_exists|already present" "$RUNNER_TEMP/release-0.1.err"; then
+            if grep -Eqi "already exists|already_exists|already present|already a release" "$RUNNER_TEMP/release-0.1.err"; then
               echo "release-0.1 already exists; leaving it unchanged."
             else
               cat "$RUNNER_TEMP/release-0.1.err"
@@ -125,21 +122,18 @@ jobs:
             fi
           fi
 
-          # 0.2 points to the current main commit. Create its tag once.
-          if ! git ls-remote --exit-code --refs origin "refs/tags/release-0.2" >/dev/null 2>&1; then
-            git push origin "HEAD:refs/tags/release-0.2"
-          fi
-
-          # Create the 0.2 Release. If it already exists, keep it unchanged.
+          # Create 0.2 on first publication. If it already exists, keep it.
           set +e
           gh release create release-0.2 ScheduleApp-release.apk \
+            --target "$GITHUB_SHA" \
             --title "ScheduleApp 0.2" \
             --notes-file CHANGELOG.md \
-            --latest 2>"$RUNNER_TEMP/release-0.2.err"
+            --latest \
+            2>"$RUNNER_TEMP/release-0.2.err"
           STATUS=$?
           set -e
           if [ "$STATUS" -ne 0 ]; then
-            if grep -Eqi "already exists|already_exists|already present" "$RUNNER_TEMP/release-0.2.err"; then
+            if grep -Eqi "already exists|already_exists|already present|already a release" "$RUNNER_TEMP/release-0.2.err"; then
               echo "release-0.2 already exists; leaving it unchanged."
             else
               cat "$RUNNER_TEMP/release-0.2.err"
