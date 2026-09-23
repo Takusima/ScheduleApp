@@ -109,22 +109,24 @@ jobs:
             git push origin "$V01_COMMIT:refs/tags/release-0.1"
           fi
 
-          # Create the 0.1 Release only on the first publication.
-          if ! gh release view release-0.1 >/dev/null 2>&1; then
-            gh release create release-0.1 "$RUNNER_TEMP/ScheduleApp-0.1.apk" \
-              --title "ScheduleApp 0.1" \
-              --notes-file CHANGELOG.md
+          # With the fixed tag in place, create the 0.1 Release.
+          # The first successful publication creates it; later runs keep it unchanged.
+          if git ls-remote --exit-code --refs origin "refs/tags/release-0.1" >/dev/null 2>&1; then
+            if ! git show-ref --verify --quiet "refs/remotes/origin/release-0.1"; then
+              git fetch --no-tags origin "refs/tags/release-0.1:refs/remotes/origin/release-0.1" || true
+            fi
           fi
+          gh release create release-0.1 "$RUNNER_TEMP/ScheduleApp-0.1.apk" \
+            --title "ScheduleApp 0.1" \
+            --notes-file CHANGELOG.md || echo "release-0.1 already exists; leaving it unchanged."
 
           # 0.2 points to the current main commit. Create its tag once.
           if ! git ls-remote --exit-code --refs origin "refs/tags/release-0.2" >/dev/null 2>&1; then
             git push origin "HEAD:refs/tags/release-0.2"
           fi
 
-          # Create the 0.2 Release only on the first publication.
-          if ! gh release view release-0.2 >/dev/null 2>&1; then
-            gh release create release-0.2 ScheduleApp-release.apk \
-              --title "ScheduleApp 0.2" \
-              --notes-file CHANGELOG.md \
-              --latest
-          fi
+          # Create the 0.2 Release.
+          gh release create release-0.2 ScheduleApp-release.apk \
+            --title "ScheduleApp 0.2" \
+            --notes-file CHANGELOG.md \
+            --latest || echo "release-0.2 already exists; leaving it unchanged."
