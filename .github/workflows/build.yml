@@ -83,6 +83,11 @@ jobs:
         run: |
           set -e
           V01_DIR="$RUNNER_TEMP/scheduleapp-0.1"
+
+          # actions/checkout uses a shallow clone by default, so the legacy
+          # commit object is not present until we fetch it explicitly.
+          git fetch --no-tags origin "$V01_COMMIT"
+
           git worktree add --detach "$V01_DIR" "$V01_COMMIT"
           gradle -p "$V01_DIR" clean assembleRelease --stacktrace
           cp "$V01_DIR/app/build/outputs/apk/release/app-release.apk" "$RUNNER_TEMP/ScheduleApp-0.1.apk"
