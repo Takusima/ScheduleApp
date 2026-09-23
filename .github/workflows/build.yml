@@ -84,8 +84,7 @@ jobs:
           set -e
           V01_DIR="$RUNNER_TEMP/scheduleapp-0.1"
 
-          # actions/checkout uses a shallow clone by default, so the legacy
-          # commit object is not present until we fetch it explicitly.
+          # actions/checkout is shallow, so fetch the exact legacy commit first.
           git fetch --no-tags origin "$V01_COMMIT"
 
           git worktree add --detach "$V01_DIR" "$V01_COMMIT"
@@ -101,29 +100,31 @@ jobs:
         run: |
           set -e
 
-          # Keep only the two supported releases: 0.1 and 0.2.
-          # 0.1 is rebuilt from the legacy commit; 0.2 is the current main build.
-          for release in $(gh release list --limit 100 --json tagName --jq '.[].tagName'); do
-            if [ "$release" != "release-0.1" ] && [ "$release" != "release-0.2" ]; then
-              gh release delete "$release" --yes --cleanup-tag || true
-            fi
-          done
+          # Do not call `gh release list` here: the Actions integration can
+          # build/push repository content but may reject the releases GET API.
+          # Instead, use git tags as the idempotency check.
 
-          # Recreate 0.1 from the exact legacy commit so no external release
-          # asset/download URL is required.
-          if gh release view release-0.1 >/dev/null 2>&1; then
-            gh release delete release-0.1 --yes --cleanup-tag || true
+          # 0.1 must point exactly to the original stable commit (#171).
+          if ! git ls-remote --exit-code --refs origin "refs/tags/release-0.1" >/dev/null 2>&1; then
+            git push origin "$V01_COMMIT:refs/tags/release-0.1"
           fi
-          gh release create release-0.1 "$RUNNER_TEMP/ScheduleApp-0.1.apk" \
-            --target "$V01_COMMIT" \
-            --title "ScheduleApp 0.1" \
-            --notes-file CHANGELOG.md
 
-          # Recreate 0.2 from the APK built from the current main commit.
-          if gh release view release-0.2 >/dev/null 2>&1; then
-            gh release delete release-0.2 --yes --cleanup-tag || true
+          # Create the 0.1 Release only on the first publication.
+          if ! gh release view release-0.1 >/dev/null 2>&1; then
+            gh release create release-0.1 "$RUNNER_TEMP/ScheduleApp-0.1.apk" \
+              --title "ScheduleApp 0.1" \
+              --notes-file CHANGELOG.md
           fi
-          gh release create release-0.2 ScheduleApp-release.apk \
-            --title "ScheduleApp 0.2" \
-            --notes-file CHANGELOG.md \
-            --latest
+
+          # 0.2 points to the current main commit. Create its tag once.
+          if ! git ls-remote --exit-code --refs origin "refs/tags/release-0.2" >/dev/null 2>&1; then
+            git push origin "HEAD:refs/tags/release-0.2"
+          fi
+
+          # Create the 0.2 Release only on the first publication.
+          if ! gh release view release-0.2 >/dev/null 2>&1; then
+            gh release create release-0.2 ScheduleApp-release.apk \
+              --title "ScheduleApp 0.2" \
+              --notes-file CHANGELOG.md \
+              --latest
+          fi
