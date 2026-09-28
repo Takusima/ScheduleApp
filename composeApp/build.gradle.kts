@@ -24,6 +24,10 @@ kotlin {
 
 android {
     namespace = "com.taku.schedule.compose"
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
     compileSdk = 35
     defaultConfig {
         minSdk = 23
