@@ -1,0 +1,59 @@
+name: Kotlin Multiplatform Check
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - kmp-migration
+  workflow_dispatch:
+
+jobs:
+  android-kmp:
+    name: Android KMP compile
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Compile KMP Android target
+        run: gradle :composeApp:compileDebugKotlinAndroid --stacktrace
+
+      - name: Build existing Android app
+        run: gradle :app:assembleDebug --stacktrace
+
+  ios-kmp:
+    name: iOS KMP framework compile
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Check Xcode
+        run: xcodebuild -version
+
+      - name: Compile iOS simulator framework
+        run: gradle :composeApp:linkDebugFrameworkIosSimulatorArm64 --stacktrace
