@@ -1,0 +1,31 @@
+plugins {
+    kotlin("multiplatform")
+    id("com.android.library")
+    id("org.jetbrains.compose")
+    id("org.jetbrains.kotlin.plugin.compose")
+}
+
+kotlin {
+    androidTarget()
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.material3)
+            implementation(compose.ui)
+            implementation(compose.components.resources)
+        }
+    }
+}
+
+android {
+    namespace = "com.taku.schedule.compose"
+    compileSdk = 35
+    defaultConfig {
+        minSdk = 23
+    }
+}
