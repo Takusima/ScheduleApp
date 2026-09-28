@@ -11,6 +11,12 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
 
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
+        binaries.framework {
+            baseName = "ScheduleApp"
+        }
+    }
+
     sourceSets {
         commonMain.dependencies {
             implementation(compose.runtime)
