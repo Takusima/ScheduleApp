@@ -1,4 +1,4 @@
-name: Check Kotlin Multiplatform
+name: Build ScheduleApp Android APK and check iOS
 
 on:
   pull_request:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   android:
-    name: Compile shared and Android code
+    name: Build Android APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,8 +32,19 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Compile Android KMP target
-        run: gradle :composeApp:compileDebugKotlinAndroid --stacktrace
+      - name: Assemble Android debug APK
+        run: gradle :app:assembleDebug :composeApp:compileDebugKotlinAndroid --stacktrace
+
+      - name: Verify APK exists
+        run: test -s app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScheduleApp-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
 
   ios:
     name: Compile iOS framework
