@@ -112,6 +112,8 @@ fun ScheduleApp() {
     }
 }
 
+private fun formatAverage(value: Double): String = (kotlin.math.round(value * 100.0) / 100.0).toString()
+
 @Composable
 private fun ScheduleScreen(subjectCount: Int, gradeCount: Int, debtCount: Int, onGrades: () -> Unit, onSubject: () -> Unit) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -166,7 +168,7 @@ private fun GradesScreen(
             Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("СРЕДНИЙ БАЛЛ", color = Accent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                    Text(average?.let { "%.2f".format(it) } ?: "—", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
+                    Text(average?.let { formatAverage(it) } ?: "—", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
                     Text(grades.size.toString() + " оценок · " + debts.count { it.status != DebtStatus.DONE } + " активных задолженностей", color = Muted)
                 }
             }
@@ -192,7 +194,7 @@ private fun GradesScreen(
                     Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(subject.name, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-                            Text(subjectAverage?.let { "%.2f".format(it) } ?: "—", color = Accent, fontWeight = FontWeight.Bold)
+                            Text(subjectAverage?.let { formatAverage(it) } ?: "—", color = Accent, fontWeight = FontWeight.Bold)
                         }
                         Text(sg.size.toString() + " оценок · " + sd.count { it.status != DebtStatus.DONE } + " незакрытых работ", color = Muted, style = MaterialTheme.typography.bodySmall)
                         sg.forEach { grade ->
