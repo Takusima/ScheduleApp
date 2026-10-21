@@ -17,8 +17,8 @@ const run=()=>{
       .nav-btn.active{background:var(--accentSoft)!important;color:var(--accent)!important;box-shadow:none!important}
       .nav-btn .icon{transition:transform .28s cubic-bezier(.22,.75,.2,1),color .28s ease}.nav-btn.active .icon{transform:translateY(-1px) scale(1.04)}
       .screen-page.active{animation:schedulePageIn .24s ease-out}@keyframes schedulePageIn{from{opacity:.45;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
-      .lesson{padding-right:58px!important}.lesson-name{min-width:0;padding-right:4px!important;overflow-wrap:anywhere;word-break:break-word}
-      html[data-density=compact] .lesson{padding:9px 58px 9px 11px!important}html[data-density=spacious] .lesson{padding:17px 58px 17px 15px!important}
+      .lesson{display:block!important;padding:42px 13px 13px!important}.lesson-time{position:absolute!important;top:12px!important;left:13px!important;right:48px!important;padding:0!important}.lesson>div:nth-child(2){width:100%;min-width:0}.lesson-name{min-width:0;width:100%;display:block;margin:0;padding:0 28px!important;text-align:center!important;overflow-wrap:anywhere;word-break:break-word}.lesson-room{text-align:center!important;padding:0 28px!important}.lesson-favorite{position:absolute!important;top:10px!important;right:10px!important;z-index:5!important;width:28px!important;height:28px!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important;margin:0!important}
+      html[data-density=compact] .lesson{padding:42px 13px 9px!important}html[data-density=spacious] .lesson{padding:42px 13px 17px!important}
       `;
       document.head.appendChild(st);
     }

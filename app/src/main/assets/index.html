@@ -772,6 +772,90 @@
                 align-items: center;
             }
         }
+    
+        /* ScheduleApp 0.3 — unified purple visual system */
+        :root {
+            color-scheme: dark;
+            --sa-bg: #0b0812;
+            --sa-surface: #151020;
+            --sa-surface-raised: #1d1530;
+            --sa-purple: #9b6cff;
+            --sa-purple-bright: #b99aff;
+            --sa-border: rgba(190, 155, 255, .15);
+            --sa-muted: #a69bb7;
+        }
+        html, body { background: var(--sa-bg); }
+        #app {
+            background:
+                radial-gradient(ellipse at 50% -15%, rgba(139, 92, 246, .24), transparent 48%),
+                linear-gradient(180deg, #0d0916 0%, #0a0810 100%);
+        }
+        .screen { padding: max(20px, env(safe-area-inset-top)) 16px calc(104px + env(safe-area-inset-bottom)); }
+        .top-title { padding: 6px 3px 18px; }
+        .top-title h1 { letter-spacing: -.9px; font-size: 30px; }
+        .top-title p { color: var(--sa-muted); }
+        .main-card {
+            border: 1px solid rgba(191, 154, 255, .22);
+            border-radius: 25px;
+            background:
+                radial-gradient(ellipse at 100% 0%, rgba(164, 115, 255, .25), transparent 52%),
+                linear-gradient(145deg, #302044 0%, #21162f 54%, #171020 100%);
+            box-shadow: 0 16px 38px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.07);
+        }
+        .primary-btn, .wide-btn {
+            background: linear-gradient(135deg, #b18aff 0%, #8751e8 55%, #7040c9 100%) !important;
+            color: #fff !important;
+            box-shadow: 0 7px 20px rgba(123, 72, 216, .25);
+        }
+        .secondary-btn, .outline-btn, .day-btn, .copt, .rem-opt, .sound-opt {
+            border-color: var(--sa-border) !important;
+        }
+        .day-btn { background: #171120; }
+        .day-btn.active { background: linear-gradient(145deg, #a678ff, #7040c9); box-shadow: 0 5px 16px rgba(129, 80, 220, .22); }
+        .lesson, .empty, .subjects-main-card {
+            background: linear-gradient(145deg, rgba(31,23,46,.98), rgba(18,14,27,.98));
+            border-color: var(--sa-border);
+            box-shadow: 0 8px 22px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.025);
+        }
+        .lesson { display: block !important; padding: 42px 13px 13px !important; }
+        .lesson-time { position: absolute !important; top: 12px !important; left: 13px !important; right: 48px !important; padding: 0 !important; }
+        .lesson > div:nth-child(2) { width: 100%; min-width: 0; }
+        .lesson-name { min-width: 0; width: 100%; display: block; margin: 0; padding: 0 28px !important; overflow-wrap: anywhere; text-align: center !important; }
+        .lesson-room { text-align: center !important; padding: 0 28px !important; }
+        .lesson-favorite { position: absolute !important; top: 10px !important; right: 10px !important; z-index: 5 !important; width: 28px !important; height: 28px !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; margin: 0 !important; }
+        .subjects-main-card {
+            width: 100%; min-width: 0; display: flex; align-items: center;
+            gap: 13px; padding: 15px; text-align: left; justify-content: flex-start;
+        }
+        .subjects-main-icon { flex: 0 0 46px; }
+        .subjects-main-content { flex: 1 1 auto; min-width: 0; text-align: left; }
+        .subjects-main-title, .subjects-main-subtitle { text-align: left; overflow-wrap: anywhere; }
+        .subjects-main-arrow { flex: 0 0 auto; margin-left: auto; }
+        input, select, textarea {
+            accent-color: var(--sa-purple);
+        }
+        input:not([type=checkbox]):not([type=radio]), select, textarea {
+            border-color: var(--sa-border) !important;
+        }
+        .modal-box {
+            border: 1px solid rgba(190,155,255,.2) !important;
+            background: linear-gradient(150deg, #21172f, #110d19) !important;
+            box-shadow: 0 24px 70px rgba(0,0,0,.5) !important;
+        }
+        .bottom-nav, .nav-bar, #bottomNav, .bottom-navigation {
+            background: rgba(17, 12, 25, .94) !important;
+            border-color: rgba(190,155,255,.16) !important;
+            backdrop-filter: blur(20px) saturate(150%);
+            -webkit-backdrop-filter: blur(20px) saturate(150%);
+        }
+        button { transition: filter .16s ease, transform .16s ease, border-color .16s ease; }
+        button:focus-visible, select:focus-visible, input:focus-visible {
+            outline: 2px solid #b99aff !important; outline-offset: 2px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+        }
+
     </style>
 </head>
 

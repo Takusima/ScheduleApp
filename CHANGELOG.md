@@ -1,6 +1,23 @@
 # ScheduleApp — Release Notes / История версий
 
-## 0.2 — Current release / Текущий релиз
+## 0.3 — Android
+
+### RU
+- Названия предметов в карточках расписания выровнены по центру; звёзды избранного больше не должны перекрывать текст.
+- Добавлен раздел «Оценки»: локальное сохранение записей по группам, средний балл, редактирование и удаление оценок.
+- Добавлен учёт задолженностей с возможностью отмечать их закрытыми.
+- Сборка релиза ориентирована только на Android; iOS пока не собирается.
+
+## Unreleased — KMP student dashboard prototype
+
+### RU
+- Добавлен начальный Compose Multiplatform интерфейс с разделами расписания, оценок, календаря и настроек.
+- Добавлены ручной ввод предметов и оценок, расчёт среднего балла, список задолженностей и изменение статусов работ.
+- Добавлено переключение светлой и тёмной темы.
+- Прототип ещё не подключён к постоянному хранилищу и существующему расписанию; он не является готовым релизом.
+- Стабильная Android-версия 0.2 и её WebView-функциональность сохранены.
+
+## 0.2 — Current stable release
 
 ### RU
 - Исправлено расписание звонков.
@@ -22,28 +39,10 @@
 - Fixed issues that could display bell intervals as separate pairs or with incorrect break intervals.
 - Preserves the functionality and visual style of stable version 0.1.
 
-## 0.1 — Original stable release / Исходный стабильный релиз
+## 0.1 — Original stable release
 
 Base: commit #171, SHA `b3c3d7687cac80e7081b78667a6a80d83fdee605`.
 
-### RU — Known issues documented
-- В этой версии расписание звонков ещё не соответствовало окончательному расписанию учебного заведения.
-- Некоторые последующие экспериментальные версии могли ломать JavaScript в `index.html`, из-за чего переставали работать настройки, расписание и другие функции.
-- Были экспериментальные изменения навигации и прокрутки, которые впоследствии были исправлены.
-- В отдельных версиях парсер Excel мог неверно определять группы или листы.
-- Синхронизация Mail Облака могла не находить Excel-файлы, когда они находились во вложенной папке ZIP-архива.
+## Release policy
 
-### EN — Known issues documented
-- This version did not yet contain the final bell schedule used by the educational institution.
-- Some later experimental versions could break JavaScript in `index.html`, causing settings, schedule loading, and other functions to stop working.
-- Experimental navigation and scrolling changes were introduced and later fixed.
-- In some versions, the Excel parser could incorrectly detect groups or sheets.
-- Mail Cloud synchronization could fail to find Excel files when they were stored inside a nested ZIP folder.
-
-## Release policy / Правило релизов
-
-Only these two release versions are kept:
-- `release-0.1` — original stable base from commit #171.
-- `release-0.2` — current stable development line.
-
-Other experimental GitHub Releases are removed by the release workflow after the next successful build.
+Do not publish the KMP prototype as a stable APK until storage, schedule integration, Android/iOS builds, and update-signing compatibility have been verified.
