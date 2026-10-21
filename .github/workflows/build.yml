@@ -162,21 +162,21 @@ jobs:
             fi
           fi
 
-          # Publish Android 3.1 with subject-specific grades and averages.
-          set +e
-          gh release create release-3.1 ScheduleApp-release.apk \
-            --target "$GITHUB_SHA" \
-            --title "ScheduleApp 3.1" \
-            --notes "Оценки сгруппированы по предметам; средний балл рассчитывается отдельно для каждого предмета. Общий средний балл убран. Предметы подсказываются из расписания. Android only." \
-            --latest \
-            2>"$RUNNER_TEMP/release-3.1.err"
-          STATUS=$?
-          set -e
-          if [ "$STATUS" -ne 0 ]; then
-            if grep -Eqi "already exists|already_exists|already present|already a release" "$RUNNER_TEMP/release-3.1.err"; then
-              echo "release-3.1 already exists; leaving it unchanged."
-            else
-              cat "$RUNNER_TEMP/release-3.1.err"
-              exit "$STATUS"
-            fi
+          # Publish or replace Android 3.1 with the latest tested APK.
+          # Keep the public release tag on this source revision and replace its APK asset.
+          git tag -f release-3.1 "$GITHUB_SHA"
+          git push --force origin refs/tags/release-3.1
+
+          if gh release view release-3.1 >/dev/null 2>&1; then
+            gh release upload release-3.1 ScheduleApp-release.apk --clobber
+            gh release edit release-3.1 \
+              --title "ScheduleApp 3.1" \
+              --notes "Исправлена навигация: раздел «Оценки» скрывается при переходе в расписание, календарь, предметы или настройки. Сохранены оценки по предметам и отдельный средний балл. Android only." \
+              --latest
+          else
+            gh release create release-3.1 ScheduleApp-release.apk \
+              --target "$GITHUB_SHA" \
+              --title "ScheduleApp 3.1" \
+              --notes "Исправлена навигация: раздел «Оценки» скрывается при переходе в расписание, календарь, предметы или настройки. Сохранены оценки по предметам и отдельный средний балл. Android only." \
+              --latest
           fi

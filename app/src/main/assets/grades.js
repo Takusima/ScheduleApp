@@ -142,7 +142,12 @@
         const originalShowPage = window.showPage;
         if (typeof originalShowPage === "function") {
             window.showPage = function (pageName) {
-                if (pageName !== "grades") return originalShowPage(pageName);
+                if (pageName !== "grades") {
+                    // The original showPage() only hides its four built-in pages.
+                    // Hide the dynamically added grades page before switching away.
+                    $("gradesPage").classList.remove("active");
+                    return originalShowPage(pageName);
+                }
                 document.querySelectorAll(".screen-page").forEach(page => page.classList.remove("active"));
                 $("gradesPage").classList.add("active");
                 document.querySelectorAll(".nav-btn").forEach(button => button.classList.remove("active"));
