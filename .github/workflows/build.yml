@@ -122,13 +122,12 @@ jobs:
             fi
           fi
 
-          # Create 0.2 on first publication. If it already exists, keep it.
+          # Create 0.2 on first publication. If it already exists, keep it unchanged.
           set +e
           gh release create release-0.2 ScheduleApp-release.apk \
             --target "$GITHUB_SHA" \
             --title "ScheduleApp 0.2" \
-            --notes-file CHANGELOG.md \
-            --latest \
+            --notes "Previous stable Android release." \
             2>"$RUNNER_TEMP/release-0.2.err"
           STATUS=$?
           set -e
@@ -137,6 +136,25 @@ jobs:
               echo "release-0.2 already exists; leaving it unchanged."
             else
               cat "$RUNNER_TEMP/release-0.2.err"
+              exit "$STATUS"
+            fi
+          fi
+
+          # Publish the new Android 0.3 APK. The existing 0.2 release is never overwritten.
+          set +e
+          gh release create release-0.3 ScheduleApp-release.apk \
+            --target "$GITHUB_SHA" \
+            --title "ScheduleApp 0.3" \
+            --notes "Исправлено центрирование названий предметов и перекрытие звёздами избранного. Добавлен журнал оценок и задолженностей с локальным сохранением. Сборка только для Android." \
+            --latest \
+            2>"$RUNNER_TEMP/release-0.3.err"
+          STATUS=$?
+          set -e
+          if [ "$STATUS" -ne 0 ]; then
+            if grep -Eqi "already exists|already_exists|already present|already a release" "$RUNNER_TEMP/release-0.3.err"; then
+              echo "release-0.3 already exists; leaving it unchanged."
+            else
+              cat "$RUNNER_TEMP/release-0.3.err"
               exit "$STATUS"
             fi
           fi

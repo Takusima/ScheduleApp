@@ -817,8 +817,12 @@
             border-color: var(--sa-border);
             box-shadow: 0 8px 22px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.025);
         }
-        .lesson { grid-template-columns: 64px minmax(0,1fr); gap: 11px; }
-        .lesson-name { min-width: 0; overflow-wrap: anywhere; text-align: center; }
+        .lesson { display: block !important; padding: 42px 13px 13px !important; }
+        .lesson-time { position: absolute !important; top: 12px !important; left: 13px !important; right: 48px !important; padding: 0 !important; }
+        .lesson > div:nth-child(2) { width: 100%; min-width: 0; }
+        .lesson-name { min-width: 0; width: 100%; display: block; margin: 0; padding: 0 28px !important; overflow-wrap: anywhere; text-align: center !important; }
+        .lesson-room { text-align: center !important; padding: 0 28px !important; }
+        .lesson-favorite { position: absolute !important; top: 10px !important; right: 10px !important; z-index: 5 !important; width: 28px !important; height: 28px !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; margin: 0 !important; }
         .subjects-main-card {
             width: 100%; min-width: 0; display: flex; align-items: center;
             gap: 13px; padding: 15px; text-align: left; justify-content: flex-start;
