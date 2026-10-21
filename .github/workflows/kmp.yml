@@ -1,4 +1,4 @@
-name: Kotlin Multiplatform Check
+name: Kotlin Multiplatform Android Check
 
 on:
   pull_request:
@@ -9,9 +9,12 @@ on:
       - kmp-migration
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   android-kmp:
-    name: Android KMP compile
+    name: Android KMP compile and APK build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,26 +37,10 @@ jobs:
       - name: Build existing Android app
         run: gradle :app:assembleDebug --stacktrace
 
-  ios-kmp:
-    name: iOS KMP framework compile
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v5
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
         with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-
-      - name: Check Xcode
-        run: xcodebuild -version
-
-      - name: Compile iOS simulator framework
-        run: gradle :composeApp:linkDebugFrameworkIosSimulatorArm64 --stacktrace
+          name: ScheduleApp-Android-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
