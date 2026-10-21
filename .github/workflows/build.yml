@@ -30,6 +30,9 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Validate grades JavaScript
+        run: node --check app/src/main/assets/grades.js
+
       - name: Apply UI fixes
         run: python3 tools/apply_ui_fixes.py
 
@@ -155,6 +158,25 @@ jobs:
               echo "release-0.3 already exists; leaving it unchanged."
             else
               cat "$RUNNER_TEMP/release-0.3.err"
+              exit "$STATUS"
+            fi
+          fi
+
+          # Publish Android 3.1 with subject-specific grades and averages.
+          set +e
+          gh release create release-3.1 ScheduleApp-release.apk \
+            --target "$GITHUB_SHA" \
+            --title "ScheduleApp 3.1" \
+            --notes "Оценки сгруппированы по предметам; средний балл рассчитывается отдельно для каждого предмета. Общий средний балл убран. Предметы подсказываются из расписания. Android only." \
+            --latest \
+            2>"$RUNNER_TEMP/release-3.1.err"
+          STATUS=$?
+          set -e
+          if [ "$STATUS" -ne 0 ]; then
+            if grep -Eqi "already exists|already_exists|already present|already a release" "$RUNNER_TEMP/release-3.1.err"; then
+              echo "release-3.1 already exists; leaving it unchanged."
+            else
+              cat "$RUNNER_TEMP/release-3.1.err"
               exit "$STATUS"
             fi
           fi

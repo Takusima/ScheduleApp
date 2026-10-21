@@ -37,6 +37,14 @@
         style.textContent = `
             #gradesPage { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
             .grades-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:4px 0 16px; }
+            .grades-subject-card { padding:14px; border-radius:18px; background:linear-gradient(145deg,#20172d,#15101c); border:1px solid rgba(166,108,255,.17); }
+            .grades-subject-card + .grades-subject-card { margin-top:12px; }
+            .grades-subject-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:11px; }
+            .grades-subject-title { min-width:0; font-size:14px; font-weight:850; color:#f3eef9; overflow-wrap:anywhere; }
+            .grades-subject-average { flex:0 0 auto; padding:6px 9px; border-radius:11px; background:rgba(166,108,255,.15); color:#d0b3ff; font-size:14px; font-weight:900; }
+            .grades-subject-meta { margin-top:4px; color:#92879f; font-size:10px; }
+            .grades-subject-card .grade-row { margin-top:8px; padding:11px; background:rgba(255,255,255,.025); }
+            .grades-subject-card .grade-actions { margin-top:9px; }
             .grades-stat { min-width:0; padding:13px 9px; border-radius:17px; background:linear-gradient(145deg,#241735,#17111f); border:1px solid rgba(166,108,255,.19); }
             .grades-stat b { display:block; font-size:21px; line-height:1.2; color:#c5a2ff; overflow-wrap:anywhere; }
             .grades-stat span { display:block; margin-top:5px; color:#91869e; font-size:10px; line-height:1.25; }
@@ -85,7 +93,7 @@
         page.innerHTML = `
             <div class="top-title"><h1>Оценки</h1><p>Успеваемость и задолженности по группе</p></div>
             <div class="grades-summary">
-                <div class="grades-stat"><b id="gradesAverage">—</b><span>Средний балл</span></div>
+                <div class="grades-stat"><b id="gradesSubjectCount">0</b><span>Предметов</span></div>
                 <div class="grades-stat"><b id="gradesCount">0</b><span>Оценок</span></div>
                 <div class="grades-stat"><b id="gradesDebtCount">0</b><span>Долгов</span></div>
             </div>
@@ -115,7 +123,7 @@
         modal.innerHTML = `
             <form class="grades-form" id="gradesForm">
                 <h2 id="gradesFormTitle">Новая запись</h2>
-                <label class="grades-field">Предмет<input id="gradeSubject" maxlength="120" required placeholder="Например, анатомия"></label>
+                <label class="grades-field">Предмет<input id="gradeSubject" list="gradeSubjectsList" maxlength="120" required placeholder="Выбери предмет или введи название"><datalist id="gradeSubjectsList"></datalist></label>
                 <label class="grades-field">Оценка<select id="gradeValue"><option value="">Без оценки</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="Зачёт">Зачёт</option><option value="Н/А">Н/А</option></select></label>
                 <label class="grades-field">Дата<input id="gradeDate" type="date" required></label>
                 <label class="grades-field">Комментарий<textarea id="gradeNote" maxlength="500" placeholder="Тема, работа, что нужно пересдать…"></textarea></label>
@@ -130,7 +138,7 @@
         modal.addEventListener("click", event => { if (event.target === modal) closeForm(); });
         $("gradesForm").addEventListener("submit", saveForm);
         const group = $("groupSelect");
-        if (group) group.addEventListener("change", render);
+        if (group) group.addEventListener("change", () => { updateSubjectSuggestions(); render(); });
         const originalShowPage = window.showPage;
         if (typeof originalShowPage === "function") {
             window.showPage = function (pageName) {
@@ -150,7 +158,8 @@
         editingId = id;
         const item = id == null ? null : read().find(row => row.id === id);
         $("gradesFormTitle").textContent = item ? "Изменить запись" : "Новая запись";
-        $("gradeSubject").value = item ? item.subject : "";
+        updateSubjectSuggestions();
+        $("gradeSubject").value = item ? canonicalSubject(item.subject) : "";
         $("gradeValue").value = item ? item.grade : "";
         $("gradeDate").value = item ? item.date : today();
         $("gradeNote").value = item ? item.note || "" : "";
@@ -163,7 +172,7 @@
 
     function saveForm(event) {
         event.preventDefault();
-        const subject = clean($("gradeSubject").value);
+        const subject = canonicalSubject($("gradeSubject").value);
         if (!subject) { $("gradeSubject").focus(); return; }
         const items = read();
         const entry = {
@@ -185,25 +194,88 @@
         render();
     }
 
+    function normalizedSubject(value) {
+        return clean(value).toLocaleLowerCase("ru-RU").replace(/ё/g, "е");
+    }
+
+    function scheduleSubjects() {
+        const found = new Map();
+        if (typeof state === "undefined" || !state.data) return [];
+        Object.keys(state.data).forEach(date => {
+            const lessons = (state.data[date] || {})[state.selectedGroup] || [];
+            lessons.forEach(lesson => {
+                const name = clean(lesson && lesson.lesson);
+                const key = normalizedSubject(name);
+                if (name && key && !found.has(key)) found.set(key, name);
+            });
+        });
+        return Array.from(found.values()).sort((a, b) => a.localeCompare(b, "ru"));
+    }
+
+    function canonicalSubject(value) {
+        const typed = clean(value);
+        if (!typed) return "";
+        const key = normalizedSubject(typed);
+        return scheduleSubjects().find(name => normalizedSubject(name) === key) || typed;
+    }
+
+    function updateSubjectSuggestions() {
+        const list = $("gradeSubjectsList");
+        if (!list) return;
+        list.innerHTML = scheduleSubjects().map(name => '<option value="' + escapeHtml(name) + '"></option>').join("");
+    }
+
+    function subjectAverage(items) {
+        const values = items.filter(item => !item.debt && !item.done && /^[2-5]$/.test(String(item.grade))).map(item => Number(item.grade));
+        return values.length ? (values.reduce((sum, n) => sum + n, 0) / values.length).toFixed(2).replace(".", ",") : "—";
+    }
+
     function render() {
         if (!$("gradesList")) return;
+        updateSubjectSuggestions();
         const items = read();
         const debts = items.filter(item => item.debt && !item.done);
-        $("gradesAverage").textContent = average(items);
-        $("gradesCount").textContent = String(items.filter(item => !item.debt && /^[2-5]$/.test(String(item.grade))).length);
+        const numericGrades = items.filter(item => !item.debt && /^[2-5]$/.test(String(item.grade)));
+        const allSubjects = new Map();
+        items.forEach(item => {
+            const name = canonicalSubject(item.subject) || clean(item.subject) || "Без предмета";
+            const key = normalizedSubject(name);
+            if (!allSubjects.has(key)) allSubjects.set(key, { name, items: [] });
+            allSubjects.get(key).items.push(item);
+        });
+        $("gradesSubjectCount").textContent = String(Array.from(allSubjects.values()).filter(group => group.items.some(item => !item.debt && /^[2-5]$/.test(String(item.grade)))).length);
+        $("gradesCount").textContent = String(numericGrades.length);
         $("gradesDebtCount").textContent = String(debts.length);
-        const visible = (showDebtsOnly ? items.filter(item => item.debt && !item.done) : items).slice().sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")));
-        if (!visible.length) {
-            $("gradesList").innerHTML = '<div class="grades-empty">' + (showDebtsOnly ? 'Задолженностей нет.' : 'Пока нет записей.<br>Нажми «Добавить запись», чтобы внести оценку или задолженность.') + '</div>';
+
+        const visibleItems = (showDebtsOnly ? items.filter(item => item.debt && !item.done) : items)
+            .slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+        if (!visibleItems.length) {
+            $("gradesList").innerHTML = '<div class="grades-empty">' + (showDebtsOnly ? "Задолженностей нет." : "Пока нет записей.<br>Нажми «Добавить запись», чтобы внести оценку или задолженность по конкретному предмету.") + "</div>";
             return;
         }
-        $("gradesList").innerHTML = visible.map(item => {
-            const debt = item.debt && !item.done;
-            const mark = debt ? "!" : (item.grade || "—");
-            const status = debt ? "Задолженность" : (item.done && item.debt ? "Долг закрыт" : (item.grade ? "Оценка" : "Без оценки"));
-            const date = item.date ? new Date(item.date + "T12:00:00").toLocaleDateString("ru-RU") : "";
-            return '<article class="grade-row' + (debt ? ' debt' : '') + '"><div class="grade-row-head"><div class="grade-mark">' + escapeHtml(mark) + '</div><div class="grade-info"><div class="grade-subject">' + escapeHtml(item.subject) + '</div><div class="grade-meta">' + escapeHtml(date) + ' · ' + escapeHtml(status) + '</div></div></div>' + (item.note ? '<div class="grade-note">' + escapeHtml(item.note) + '</div>' : '') + '<div class="grade-actions">' + (debt ? '<button class="grade-resolve" data-action="resolve" data-id="' + escapeHtml(item.id) + '">Закрыть долг</button>' : '') + '<button data-action="edit" data-id="' + escapeHtml(item.id) + '">Изменить</button><button data-action="delete" data-id="' + escapeHtml(item.id) + '">Удалить</button></div></article>';
-        }).join("");
+
+        const visibleBySubject = new Map();
+        visibleItems.forEach(item => {
+            const name = canonicalSubject(item.subject) || clean(item.subject) || "Без предмета";
+            const key = normalizedSubject(name);
+            if (!visibleBySubject.has(key)) visibleBySubject.set(key, { name, items: [] });
+            visibleBySubject.get(key).items.push(item);
+        });
+
+        $("gradesList").innerHTML = Array.from(visibleBySubject.values())
+            .sort((a, b) => a.name.localeCompare(b.name, "ru"))
+            .map(group => {
+                const graded = group.items.filter(item => !item.debt && /^[2-5]$/.test(String(item.grade)));
+                const cards = group.items.map(item => {
+                    const debt = item.debt && !item.done;
+                    const mark = debt ? "!" : (item.grade || "—");
+                    const status = debt ? "Задолженность" : (item.done && item.debt ? "Долг закрыт" : (item.grade ? "Оценка" : "Без оценки"));
+                    const date = item.date ? new Date(item.date + "T12:00:00").toLocaleDateString("ru-RU") : "";
+                    return '<article class="grade-row' + (debt ? " debt" : "") + '"><div class="grade-row-head"><div class="grade-mark">' + escapeHtml(mark) + '</div><div class="grade-info"><div class="grade-meta">' + escapeHtml(date) + " · " + escapeHtml(status) + '</div>' + (item.note ? '<div class="grade-note">' + escapeHtml(item.note) + "</div>" : "") + '</div></div><div class="grade-actions">' + (debt ? '<button class="grade-resolve" data-action="resolve" data-id="' + escapeHtml(item.id) + '">Закрыть долг</button>' : "") + '<button data-action="edit" data-id="' + escapeHtml(item.id) + '">Изменить</button><button data-action="delete" data-id="' + escapeHtml(item.id) + '">Удалить</button></div></article>';
+                }).join("");
+                return '<section class="grades-subject-card"><div class="grades-subject-head"><div><div class="grades-subject-title">' + escapeHtml(group.name) + '</div><div class="grades-subject-meta">' + graded.length + (graded.length === 1 ? " оценка" : " оценок") + " · " + group.items.filter(item => item.debt && !item.done).length + ' долгов</div></div><div class="grades-subject-average">' + subjectAverage(group.items) + "</div></div>" + cards + "</section>";
+            }).join("");
+
         $("gradesList").querySelectorAll("button[data-action]").forEach(button => {
             button.addEventListener("click", () => {
                 const id = button.dataset.id;
