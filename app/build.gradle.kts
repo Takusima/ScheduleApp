@@ -11,7 +11,7 @@ android {
         applicationId = "com.taku.schedule"
         minSdk = 23
         targetSdk = 35
-        versionCode = 5
+        versionCode = 6
         versionName = "3.1"
     }
 
