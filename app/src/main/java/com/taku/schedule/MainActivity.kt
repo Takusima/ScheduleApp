@@ -12,6 +12,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.documentfile.provider.DocumentFile
 import androidx.appcompat.app.AppCompatActivity
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
@@ -31,6 +32,20 @@ class MainActivity : AppCompatActivity() {
     private val openExcel = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (!uris.isNullOrEmpty()) importSelectedFiles(uris) }
     private val openBackground = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) importBackground(uri) }
     private val openPersonalData = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) importPersonalData(uri) }
+    private val chooseAutoBackupFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            try {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                getSharedPreferences("app_install_state", MODE_PRIVATE).edit().putString("auto_backup_tree_uri", uri.toString()).apply()
+                runOnUiThread {
+                    if (::web.isInitialized) web.evaluateJavascript("window.scheduleAppSaveAutoBackup&&window.scheduleAppSaveAutoBackup()", null)
+                }
+            } catch (e: Exception) {
+                sendError(e.message ?: "Не удалось выбрать папку для резервной копии")
+            }
+        }
+    }
+    private val autoBackupFile by lazy { File(filesDir, "scheduleapp_backup/auto-backup.json").apply { parentFile?.mkdirs() } }
     private val createPersonalData = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri -> if (uri != null) writePersonalData(uri) }
     @Volatile private var pendingPersonalDataExport: String? = null
     @Volatile private var pendingPersonalDataFileName: String = "scheduleapp-backup.json"
@@ -145,7 +160,76 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun savePersonalData(json: String, fileName: String) {
             pendingPersonalDataExport = json
             pendingPersonalDataFileName = fileName.ifBlank { "scheduleapp-backup.json" }
-            runOnUiThread { createPersonalData.launch("application/json") }
+            runOnUiThread { createPersonalData.launch(pendingPersonalDataFileName) }
+        }
+        @JavascriptInterface fun chooseAutomaticBackupFolder() {
+            runOnUiThread { chooseAutoBackupFolder.launch(null) }
+        }
+        @JavascriptInterface fun hasAutomaticBackupFolder(): Boolean =
+            !getSharedPreferences("app_install_state", MODE_PRIVATE).getString("auto_backup_tree_uri", null).isNullOrBlank()
+        @JavascriptInterface fun saveAutomaticBackup(json: String) {
+            thread {
+                try {
+                    if (json.length > 2_000_000) throw IllegalArgumentException("Резервная копия превышает 2 МБ")
+                    JSONObject(json).let {
+                        if (it.optString("app") != "scheduleapp" || it.optInt("schemaVersion") != 2) {
+                            throw IllegalArgumentException("Неподдерживаемый формат резервной копии")
+                        }
+                    }
+                    val temp = File(autoBackupFile.parentFile, "auto-backup.json.tmp")
+                    temp.writeText(json, Charsets.UTF_8)
+                    if (autoBackupFile.exists() && !autoBackupFile.delete()) throw IllegalStateException("Не удалось обновить локальную копию")
+                    if (!temp.renameTo(autoBackupFile)) {
+                        temp.copyTo(autoBackupFile, overwrite = true)
+                        temp.delete()
+                    }
+                    val treeText = getSharedPreferences("app_install_state", MODE_PRIVATE).getString("auto_backup_tree_uri", null)
+                    if (!treeText.isNullOrBlank()) {
+                        val treeUri = Uri.parse(treeText)
+                        val tree = DocumentFile.fromTreeUri(this@MainActivity, treeUri)
+                            ?: throw IllegalStateException("Папка резервной копии недоступна")
+                        val tempDoc = tree.findFile("ScheduleApp-auto-backup.json.tmp")?.also { it.delete() }
+                            ?: tree.createFile("application/json", "ScheduleApp-auto-backup.json.tmp")
+                            ?: throw IllegalStateException("Не удалось создать файл резервной копии")
+                        contentResolver.openOutputStream(tempDoc.uri, "wt")?.use { it.write(json.toByteArray(Charsets.UTF_8)); it.flush() }
+                            ?: throw IllegalStateException("Не удалось записать резервную копию")
+                        tree.findFile("ScheduleApp-auto-backup.json")?.delete()
+                        if (!tempDoc.renameTo("ScheduleApp-auto-backup.json")) {
+                            val finalDoc = tree.createFile("application/json", "ScheduleApp-auto-backup.json")
+                                ?: throw IllegalStateException("Не удалось завершить сохранение копии")
+                            contentResolver.openOutputStream(finalDoc.uri, "wt")?.use { it.write(json.toByteArray(Charsets.UTF_8)); it.flush() }
+                                ?: throw IllegalStateException("Не удалось завершить запись копии")
+                            tempDoc.delete()
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Automatic backups must not interrupt normal app use.
+                }
+            }
+        }
+        @JavascriptInterface fun loadAutomaticBackup() {
+            thread {
+                try {
+                    val treeText = getSharedPreferences("app_install_state", MODE_PRIVATE).getString("auto_backup_tree_uri", null)
+                    val external = if (!treeText.isNullOrBlank()) {
+                        val tree = DocumentFile.fromTreeUri(this@MainActivity, Uri.parse(treeText))
+                        tree?.findFile("ScheduleApp-auto-backup.json")?.let { doc ->
+                            contentResolver.openInputStream(doc.uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                        }
+                    } else null
+                    val content = external ?: if (autoBackupFile.exists()) autoBackupFile.readText(Charsets.UTF_8) else null
+                    if (content.isNullOrBlank()) throw IllegalStateException("Резервная копия пока не найдена. Выбери папку и дождись сохранения копии.")
+                    if (content.length > 2_000_000) throw IllegalArgumentException("Файл резервной копии слишком большой")
+                    JSONObject(content).let {
+                        if (it.optString("app") != "scheduleapp" || it.optInt("schemaVersion") != 2) {
+                            throw IllegalArgumentException("Файл не является полной резервной копией ScheduleApp")
+                        }
+                    }
+                    runOnUiThread { if (::web.isInitialized) web.evaluateJavascript("window.onAutomaticBackupLoaded&&window.onAutomaticBackupLoaded(" + JSONObject.quote(content) + ",null)", null) }
+                } catch (e: Exception) {
+                    runOnUiThread { if (::web.isInitialized) web.evaluateJavascript("window.onAutomaticBackupLoaded&&window.onAutomaticBackupLoaded(null," + JSONObject.quote(e.message ?: "Не удалось прочитать резервную копию") + ")", null) }
+                }
+            }
         }
         @JavascriptInterface fun hasSeenWelcome(): Boolean =
             getSharedPreferences("app_install_state", MODE_PRIVATE).getBoolean("welcome_seen_v1", false)

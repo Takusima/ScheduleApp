@@ -162,21 +162,20 @@ jobs:
             fi
           fi
 
-          # Publish or replace Android 3.1 with the latest tested APK.
-          # Keep the public release tag on this source revision and replace its APK asset.
-          git tag -f release-3.1 "$GITHUB_SHA"
-          git push --force origin refs/tags/release-3.1
+          # Publish the new Android 3.2 release without changing the existing 3.1 APK.
+          git tag -f release-3.2 "$GITHUB_SHA"
+          git push --force origin refs/tags/release-3.2
 
-          if gh release view release-3.1 >/dev/null 2>&1; then
-            gh release upload release-3.1 ScheduleApp-release.apk --clobber
-            gh release edit release-3.1 \
-              --title "ScheduleApp 3.1" \
-              --notes "Исправлена навигация: раздел «Оценки» скрывается при переходе в расписание, календарь, предметы или настройки. Сохранены оценки по предметам и отдельный средний балл. Android only." \
+          if gh release view release-3.2 >/dev/null 2>&1; then
+            gh release upload release-3.2 ScheduleApp-release.apk --clobber
+            gh release edit release-3.2 \
+              --title "ScheduleApp 3.2" \
+              --notes "Добавлена полная резервная копия личных данных: оценки, выбранная группа, преподаватели, любимые предметы, тема и настройки. Автосохранение в выбранную папку телефона, восстановление и прежний импорт/экспорт. Android only." \
               --latest
           else
-            gh release create release-3.1 ScheduleApp-release.apk \
+            gh release create release-3.2 ScheduleApp-release.apk \
               --target "$GITHUB_SHA" \
-              --title "ScheduleApp 3.1" \
-              --notes "Исправлена навигация: раздел «Оценки» скрывается при переходе в расписание, календарь, предметы или настройки. Сохранены оценки по предметам и отдельный средний балл. Android only." \
+              --title "ScheduleApp 3.2" \
+              --notes "Добавлена полная резервная копия личных данных: оценки, выбранная группа, преподаватели, любимые предметы, тема и настройки. Автосохранение в выбранную папку телефона, восстановление и прежний импорт/экспорт. Android only." \
               --latest
           fi

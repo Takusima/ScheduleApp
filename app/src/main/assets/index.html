@@ -1137,13 +1137,20 @@
                         <option value="teachers">Преподаватели</option>
                         <option value="curator">Куратор</option>
                         <option value="favorites">Любимые предметы</option>
-                        <option value="all">Всё сразу</option>
+                        <option value="all">Преподаватели, куратор и любимые предметы</option>
+                        <option value="backup">Полная копия: оценки, группа, тема и настройки</option>
                     </select>
                     <div class="data-action-row">
                         <button type="button" class="outline-btn" onclick="importSelectedPersonalData()">Импортировать</button>
                         <button type="button" class="wide-btn" onclick="exportSelectedPersonalData()">Экспортировать</button>
                     </div>
+                    <div class="info-line"><span>Автокопия</span><span id="autoBackupStatus">Локальная копия</span></div>
+                    <div class="data-action-row">
+                        <button type="button" class="outline-btn" onclick="chooseAutomaticBackupFolder()">Выбрать папку для автокопии</button>
+                        <button type="button" class="outline-btn" onclick="restoreAutomaticBackup()">Восстановить копию</button>
+                    </div>
                     <div class="info-line"><span>Формат</span><span>JSON</span></div>
+                    <p>Автокопия обновляется при изменении данных. Для восстановления после удаления приложения выбери отдельную папку телефона; локальная копия дополнительно попадёт в резервное копирование Android, если оно включено.</p>
                 </div>
             </div>
 
@@ -3582,12 +3589,13 @@ function personalFileName(kind) {
     if (kind === "teachers") return "scheduleapp-prepodavateli-" + group + ".json";
     if (kind === "curator") return "scheduleapp-kurator-" + group + ".json";
     if (kind === "favorites") return "scheduleapp-lyubimye-predmety-" + group + ".json";
+    if (kind === "backup") return "scheduleapp-full-backup.json";
     return "scheduleapp-backup-" + group + ".json";
 }
 
 function exportPersonalData(kind) {
     kind = kind || "all";
-    const payload = JSON.stringify(readPersonalData(kind), null, 2);
+    const payload = JSON.stringify(kind === "backup" ? createScheduleAppBackup() : readPersonalData(kind), null, 2);
     if (window.Android && typeof Android.savePersonalData === "function") {
         Android.savePersonalData(payload, personalFileName(kind));
     } else {
@@ -3608,6 +3616,10 @@ window.onPersonalDataImported = function(json, requestedType) {
     try {
         const data = typeof json === "string" ? JSON.parse(json) : json;
         if (!data || data.app !== "scheduleapp") throw new Error("Это не файл данных «Расписание».");
+        if (data.schemaVersion === 2 && data.localStorage && typeof data.localStorage === "object" && !Array.isArray(data.localStorage)) {
+            restoreScheduleAppBackup(data);
+            return;
+        }
         const type = requestedType || data.type || "all";
         if (!["all","teachers","curator","favorites"].includes(type)) throw new Error("Неизвестный тип данных.");
 
@@ -3742,6 +3754,115 @@ document.addEventListener(
 );
 
 startBellSchedule();
+
+function createScheduleAppBackup() {
+    const localStorageData = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key !== null) localStorageData[key] = localStorage.getItem(key);
+    }
+    return { app: "scheduleapp", schemaVersion: 2, type: "backup", savedAt: new Date().toISOString(), localStorage: localStorageData };
+}
+
+function restoreScheduleAppBackup(data) {
+    if (!data || data.app !== "scheduleapp" || data.schemaVersion !== 2 || !data.localStorage || typeof data.localStorage !== "object" || Array.isArray(data.localStorage)) {
+        throw new Error("Резервная копия повреждена или имеет неподдерживаемый формат.");
+    }
+    const entries = Object.entries(data.localStorage);
+    if (entries.length > 5000 || entries.some(([key, value]) => typeof key !== "string" || typeof value !== "string") ||
+        entries.reduce((sum, [key, value]) => sum + key.length + value.length, 0) > 1_800_000) {
+        throw new Error("Данные резервной копии некорректны или слишком велики.");
+    }
+    try {
+        entries.forEach(([key, value]) => localStorage.setItem(key, value));
+        const keep = new Set(entries.map(([key]) => key));
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key !== null && !keep.has(key)) localStorage.removeItem(key);
+        }
+    } catch (_) {
+        throw new Error("Не удалось восстановить копию: не хватает места в хранилище.");
+    }
+    showMessage("Данные восстановлены", "Группа, оценки, преподаватели, любимые предметы, тема и настройки восстановлены. Приложение перезапустится.");
+    setTimeout(() => location.reload(), 700);
+}
+
+function scheduleAppSaveAutoBackup() {
+    try {
+        if (window.Android && typeof Android.saveAutomaticBackup === "function") {
+            Android.saveAutomaticBackup(JSON.stringify(createScheduleAppBackup()));
+            updateAutoBackupStatus();
+        }
+    } catch (_) {}
+}
+
+function chooseAutomaticBackupFolder() {
+    if (window.Android && typeof Android.chooseAutomaticBackupFolder === "function") {
+        Android.chooseAutomaticBackupFolder();
+    } else {
+        showMessage("Автокопия", "Выбор папки доступен в Android-приложении.");
+    }
+}
+
+function restoreAutomaticBackup() {
+    if (window.Android && typeof Android.loadAutomaticBackup === "function") {
+        Android.loadAutomaticBackup();
+    } else {
+        showMessage("Автокопия", "Восстановление доступно в Android-приложении.");
+    }
+}
+
+function updateAutoBackupStatus() {
+    const el = document.getElementById("autoBackupStatus");
+    if (!el) return;
+    try {
+        el.textContent = window.Android && Android.hasAutomaticBackupFolder && Android.hasAutomaticBackupFolder()
+            ? "Папка телефона"
+            : "Внутри приложения";
+    } catch (_) {
+        el.textContent = "Внутри приложения";
+    }
+}
+
+window.onAutomaticBackupLoaded = function(json, error) {
+    if (error) {
+        showMessage("Не удалось восстановить", error);
+        return;
+    }
+    try {
+        const data = JSON.parse(json);
+        restoreScheduleAppBackup(data);
+    } catch (e) {
+        showMessage("Ошибка резервной копии", e.message || "Файл не удалось проверить.");
+    }
+};
+
+(function installAutomaticBackupHooks() {
+    const originalSetItem = Storage.prototype.setItem;
+    const originalRemoveItem = Storage.prototype.removeItem;
+    const originalClear = Storage.prototype.clear;
+    let timer = null;
+    const queue = () => {
+        clearTimeout(timer);
+        timer = setTimeout(scheduleAppSaveAutoBackup, 900);
+    };
+    Storage.prototype.setItem = function(key, value) {
+        originalSetItem.call(this, key, value);
+        if (this === localStorage) queue();
+    };
+    Storage.prototype.removeItem = function(key) {
+        originalRemoveItem.call(this, key);
+        if (this === localStorage) queue();
+    };
+    Storage.prototype.clear = function() {
+        originalClear.call(this);
+        if (this === localStorage) queue();
+    };
+    document.addEventListener("DOMContentLoaded", () => {
+        updateAutoBackupStatus();
+        setTimeout(scheduleAppSaveAutoBackup, 1500);
+    }, { once: true });
+})();
 
 </script>
 
