@@ -125,14 +125,53 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == LessonReminderScheduler.PERMISSION_REQUEST) {
             val granted = grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED
-            if (granted) {
-                LessonReminderScheduler.reschedule(this)
-            }
+            if (granted) LessonReminderScheduler.reschedule(this)
             if (::web.isInitialized) {
                 web.evaluateJavascript(
                     "window.onLessonNotificationPermission&&window.onLessonNotificationPermission(" + granted + ")",
                     null
                 )
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (LessonReminderScheduler.isEnabled(this)) {
+            LessonReminderScheduler.reschedule(this)
+            if (::web.isInitialized && android.os.Build.VERSION.SDK_INT >= 31 &&
+                !LessonReminderScheduler.exactAlarmPermissionGranted(this)
+            ) {
+                web.evaluateJavascript(
+                    "window.onExactAlarmPermission&&window.onExactAlarmPermission(false)",
+                    null
+                )
+            }
+        }
+    }
+
+    private val exactAlarmSettings = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        LessonReminderScheduler.reschedule(this)
+        if (::web.isInitialized) web.evaluateJavascript(
+            "window.onExactAlarmPermission&&window.onExactAlarmPermission(" +
+                LessonReminderScheduler.exactAlarmPermissionGranted(this) + ")",
+            null
+        )
+    }
+
+    private fun requestExactAlarmAccess() {
+        if (android.os.Build.VERSION.SDK_INT >= 31 &&
+            !LessonReminderScheduler.exactAlarmPermissionGranted(this)
+        ) {
+            try {
+                exactAlarmSettings.launch(
+                    Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                        .setData(Uri.parse("package:$packageName"))
+                )
+            } catch (_: Exception) {
+                sendError("Разреши точные будильники для ScheduleApp в настройках Android")
             }
         }
     }
@@ -254,6 +293,7 @@ class MainActivity : AppCompatActivity() {
                 lessonsJson
             )
         }
+        @JavascriptInterface fun requestExactAlarmPermission() { runOnUiThread { requestExactAlarmAccess() } }
         @JavascriptInterface fun configureLessonNotifications(enabled: Boolean, minutes: Int) {
             if (enabled) {
                 val granted = LessonReminderScheduler.requestPermissionIfNeeded(this@MainActivity)
