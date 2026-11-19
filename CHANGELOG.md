@@ -1,3 +1,12 @@
+## Unreleased — reminder reliability and schedule files
+
+### RU
+- Напоминания используют `setExactAndAllowWhileIdle`, когда Android разрешает точные будильники; без разрешения применяется best-effort fallback.
+- Добавлен переход к системным настройкам точных будильников и перепостановка при возврате приложения.
+- После отправки уведомления планировщик восстанавливает последующие напоминания из сохранённого расписания.
+- Excel-файлы хранятся во внутреннем кэше и дублируются в `Documents/ScheduleApp` в app-specific external storage.
+- Требуется CI и ручная проверка на устройстве.
+
 # ScheduleApp — Release Notes / История версий
 
 ## 3.1 — Android
