@@ -1,4 +1,4 @@
-name: Build preview APK
+name: Build preview APK (isolated)
 
 on:
   push:
