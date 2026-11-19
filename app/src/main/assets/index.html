@@ -1063,9 +1063,7 @@
                 <h3>Excel-файл</h3>
 
                 <p>
-                    Можно самостоятельно выбрать один или несколько
-                    файлов Excel. Они сохранятся внутри приложения и
-                    будут доступны без интернета.
+                    Можно выбрать Excel-файлы вручную. Приложение сохраняет рабочую копию для офлайн-доступа и дублирует файлы в папку ScheduleApp в документах приложения.
                 </p>
 
                 <button
@@ -1086,7 +1084,7 @@
 
             <div class="settings-card" id="lessonNotificationsCard">
                 <h3>🔔 Уведомления о парах</h3>
-                <p>Приложение напомнит о начале выбранной пары. Настройка хранится отдельно от расписания.</p>
+                <p>Напоминания рассчитываются по фактическому времени занятий из Excel. Для максимально точного времени разреши точные будильники в Android.</p>
                 <div class="notify-row">
                     <span id="notifyState" style="color:#817987;font-size:11px">Выключены</span>
                     <button type="button" id="notifyToggle" class="notify-toggle" onclick="toggleLessonNotifications()">Включить</button>
@@ -1096,7 +1094,8 @@
                     <option value="5">За 5 минут</option>
                     <option value="10" selected>За 10 минут</option>
                 </select>
-                <div id="notifyHint" style="margin-top:7px;color:#817987;font-size:10px;line-height:1.4">На Android 13+ потребуется разрешить уведомления один раз.</div>
+                <div id="notifyHint" style="margin-top:7px;color:#817987;font-size:10px;line-height:1.4">Разреши уведомления и точные будильники. Энергосбережение производителя может дополнительно ограничивать работу в фоне.</div>
+                <button type="button" class="outline-btn" style="margin-top:9px;width:100%" onclick="requestExactAlarmPermission()">Разрешить точные напоминания</button>
             </div>
 
             <div class="settings-card">
@@ -3515,6 +3514,22 @@ function toggleLessonNotifications() {
     }
     if (enable && window.Android && typeof Android.setLessonReminders === "function") {
         Android.setLessonReminders(true, settings.minutes, state.selectedGroup || "", "default", JSON.stringify(buildLessonReminderPayload()));
+    }
+    updateLessonNotificationUI();
+}
+
+function requestExactAlarmPermission() {
+    if (window.Android && typeof Android.requestExactAlarmPermission === "function") {
+        Android.requestExactAlarmPermission();
+    }
+}
+
+window.onExactAlarmPermission = function(granted) {
+    const hint = document.getElementById("notifyHint");
+    if (hint) {
+        hint.textContent = granted
+            ? "Точные будильники разрешены. Напоминания будут выставляться по времени пар."
+            : "Точные будильники не разрешены. Android может задерживать уведомления в режиме энергосбережения.";
     }
     updateLessonNotificationUI();
 }
