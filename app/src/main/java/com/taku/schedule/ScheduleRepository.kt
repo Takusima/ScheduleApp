@@ -531,6 +531,8 @@ object ScheduleRepository {
                 }
             }
 
+            exportToScheduleFolder(context, result)
+
             old.deleteRecursively()
             File(context.filesDir, TEMP_DIR).deleteRecursively()
             return result
@@ -547,6 +549,39 @@ object ScheduleRepository {
             }
 
             throw e
+        }
+    }
+
+
+    /**
+     * Keeps a user-visible copy alongside the private app cache.
+     * Android app-specific external Documents storage is accessible in file managers
+     * without requesting broad storage access.
+     */
+    private fun exportToScheduleFolder(context: Context, files: List<File>) {
+        val documents = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOCUMENTS)
+            ?: return
+        val folder = File(documents, "ScheduleApp")
+        if (!folder.exists() && !folder.mkdirs()) return
+
+        val staged = File(folder, ".schedule_update_tmp")
+        staged.deleteRecursively()
+        if (!staged.mkdirs()) return
+        try {
+            files.forEach { source ->
+                if (!source.isFile || source.length() <= 0L) {
+                    throw IllegalStateException("Некорректный Excel-файл: ${source.name}")
+                }
+                source.copyTo(File(staged, source.name), overwrite = true)
+            }
+            val copied = staged.listFiles()?.filter { it.isFile && isExcelFile(it.name) }.orEmpty()
+            if (copied.size != files.size || copied.any { it.length() <= 0L }) {
+                throw IllegalStateException("Не удалось проверить копии Excel-файлов")
+            }
+            folder.listFiles()?.filter { it.isFile && isExcelFile(it.name) }?.forEach { it.delete() }
+            copied.forEach { it.copyTo(File(folder, it.name), overwrite = true) }
+        } finally {
+            staged.deleteRecursively()
         }
     }
 
