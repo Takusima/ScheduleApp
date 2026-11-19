@@ -170,22 +170,30 @@ object LessonReminderScheduler {
         manager.createNotificationChannel(channel)
     }
 
-    private fun parseDateTime(date: String, time: String): Long? = try {
-        val d = Regex("^(\\d{4})-(\\d{2})-(\\d{2})$").find(date) ?: return null
-        val t = Regex("^(\\d{1,2})[:.](\\d{2})$").find(time.trim()) ?: return null
-        val hour = t.groupValues[1].toInt()
-        val minute = t.groupValues[2].toInt()
-        if (hour !in 0..23 || minute !in 0..59) return null
-        java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.YEAR, d.groupValues[1].toInt())
-            set(java.util.Calendar.MONTH, d.groupValues[2].toInt() - 1)
-            set(java.util.Calendar.DAY_OF_MONTH, d.groupValues[3].toInt())
-            set(java.util.Calendar.HOUR_OF_DAY, hour)
-            set(java.util.Calendar.MINUTE, minute)
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
-        }.timeInMillis
-    } catch (_: Exception) { null }
+    private fun parseDateTime(date: String, time: String): Long? {
+        return try {
+            val d = Regex("^(\\\\d{4})-(\\\\d{2})-(\\\\d{2})$").find(date) ?: return null
+            val t = Regex("^(\\\\d{1,2})[:.](\\\\d{2})$").find(time.trim()) ?: return null
+            val year = d.groupValues[1].toInt()
+            val month = d.groupValues[2].toInt()
+            val day = d.groupValues[3].toInt()
+            val hour = t.groupValues[1].toInt()
+            val minute = t.groupValues[2].toInt()
+            if (month !in 1..12 || day !in 1..31 || hour !in 0..23 || minute !in 0..59) return null
+            java.util.Calendar.getInstance().apply {
+                isLenient = false
+                set(java.util.Calendar.YEAR, year)
+                set(java.util.Calendar.MONTH, month - 1)
+                set(java.util.Calendar.DAY_OF_MONTH, day)
+                set(java.util.Calendar.HOUR_OF_DAY, hour)
+                set(java.util.Calendar.MINUTE, minute)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     private fun stableId(value: String): Int {
         val raw = value.hashCode()
