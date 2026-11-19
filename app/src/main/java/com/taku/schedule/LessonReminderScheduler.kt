@@ -234,8 +234,9 @@ class LessonReminderReceiver : android.content.BroadcastReceiver() {
         NotificationManagerCompat.from(context)
             .notify(stableNotificationId("$date|$time|$lesson|$group"), notification)
 
-        // Schedule the next date after this reminder fires only if the stored plan was
-        // refreshed; daily receiver is intentionally not responsible for generating dates.
+        // Android may remove alarms after delivery. Rebuild the next 45-day window
+        // from the persisted schedule so reminders continue without opening the app.
+        LessonReminderScheduler.reschedule(context)
     }
 
     private fun stableNotificationId(value: String): Int {
