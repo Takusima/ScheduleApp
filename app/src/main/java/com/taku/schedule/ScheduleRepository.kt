@@ -531,7 +531,9 @@ object ScheduleRepository {
                 }
             }
 
-            exportToScheduleFolder(context, result)
+            // A failure to export a convenience copy must never invalidate the
+            // verified private cache used by the application.
+            runCatching { exportToScheduleFolder(context, result) }
 
             old.deleteRecursively()
             File(context.filesDir, TEMP_DIR).deleteRecursively()
